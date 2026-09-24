@@ -7,6 +7,12 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24 04:06: Template refs are validated against step *ids*, not output names.**
+  `{{ steps.<id>.output }}`/`.path` resolves by step id (output names are free-form and may
+  repeat across router branches). Router `goto` may target *later* steps (that is the branch);
+  only input/output template refs are checked for forward references, using a two-pass
+  validation (collect all ids, then walk in order).
+
 - **2026-09-24 04:00: v1 scope = core + async queue.** v1 (end of Phase 5) delivers the
   file registry, single-agent + sequential-pipeline execution, and an async HTTP API with
   status polling backed by a bounded in-process worker pool. No Redis, no CRUD API, no tools.

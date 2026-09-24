@@ -5,7 +5,7 @@ Live phase tracker. Update the Status column as phases complete. v1 ships at end
 | Phase | Deliverable | Status |
 |---|---|---|
 | 0 | Bootstrap: git, CI, docs, health endpoint, container | ✅ done |
-| 1 | `registry`: load/validate/atomic-write blueprints + prompts | ⬜ todo |
+| 1 | `registry`: load/validate/atomic-write blueprints + prompts | ✅ done |
 | 2 | `llm.Client` + fake; single-agent execution | ⬜ todo |
 | 3 | HTTP API (sync) + middleware (auth/logging/recovery) | ⬜ todo |
 | 4 | `store` (SQLite) + async jobs + bounded worker pool + orphan requeue | ⬜ todo |

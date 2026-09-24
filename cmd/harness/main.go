@@ -16,6 +16,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/bigknoxy/j-harness/internal/registry"
 )
 
 // version is overridable at build time with -ldflags "-X main.version=...".
@@ -23,6 +25,7 @@ var version = "0.0.0-dev"
 
 func main() {
 	addr := flag.String("addr", envOr("HARNESS_ADDR", "127.0.0.1:8080"), "HTTP listen address")
+	registryPath := flag.String("registry", envOr("HARNESS_REGISTRY", "./agent-registry"), "agent registry root directory")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -30,6 +33,13 @@ func main() {
 		log.Printf("j-harness %s", version)
 		return
 	}
+
+	reg, err := registry.Load(*registryPath)
+	if err != nil {
+		log.Fatalf("load registry %s: %v", *registryPath, err)
+	}
+	log.Printf("registry %s: %d blueprint(s), %d pipeline(s)",
+		*registryPath, len(reg.BlueprintIDs()), len(reg.PipelineIDs()))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
