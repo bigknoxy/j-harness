@@ -7,6 +7,19 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Phase 7 — registry CRUD writes reload the whole registry and hot-swap the engine snapshot.**
+  `POST|PUT /v1/registry/{agents,pipelines}/{id}` validate the payload, call the existing
+  `registry.WriteBlueprint`/`WritePipeline` (atomic temp-file + rename), then re-`Load` the
+  entire registry root and swap the resulting snapshot into both the API and the `Engine`.
+  We reload rather than mutate maps in place because the snapshot then matches exactly what a
+  fresh process would load, and one validation pass catches cross-file breakage (a new
+  pipeline referencing an agent that does not exist, a duplicate output name, a cycle). The
+  `Engine` now holds its registry behind a `sync.RWMutex` with `SetRegistry`; an in-flight run
+  keeps the snapshot it started with, and the next run sees the new one. Writes are serialized
+  by the API's `mu` so concurrent reloads cannot interleave. `POST` returns `409` on an
+  existing id, `PUT` returns `404` on a missing id; an invalid payload returns `400` and
+  leaves the files untouched.
+
 - **2026-09-24: Phase 6 — dependencies are derived from refs, `needs`, and router edges.**
   `Engine.RunPipeline` is a concurrent DAG scheduler. Step dependencies come from three
   sources, unioned: (a) `{{ steps.<id>.output }}` refs in a step's input, (b) an explicit

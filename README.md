@@ -14,9 +14,10 @@ vLLM, llama.cpp server), and exposes an async HTTP API: submit a job, poll for t
 
 Single binary. Embedded SQLite. No external services required.
 
-> **Status: Phase 6.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
-> async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`).
-> Branching routers and parallel DAGs are supported today; registry CRUD and tools arrive in
+> **Status: Phase 7.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
+> async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`), and the
+> registry can be created and updated over HTTP.
+> Branching routers, parallel DAGs, and registry CRUD are supported today; tools arrive in
 > later phases. See
 > [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
 > [`tasks/todo.md`](tasks/todo.md) for the current work item.
@@ -94,6 +95,10 @@ output that later steps can reference. See [`docs/SCHEMA.md`](docs/SCHEMA.md).
 | `POST` | `/v1/pipelines/{id}/execute` | submit a pipeline run -> `202 {session_id}` |
 | `GET`  | `/v1/sessions/{id}` | poll job status + result |
 | `GET`  | `/v1/sessions/{id}/steps` | per-step results |
+| `GET`  | `/v1/registry/agents` | list agents |
+| `POST` | `/v1/registry/agents/{id}` | create or update an agent |
+| `GET`  | `/v1/registry/pipelines` | list pipelines |
+| `POST` | `/v1/registry/pipelines/{id}` | create or update a pipeline |
 
 ```bash
 # submit
@@ -105,7 +110,8 @@ SESSION=$(curl -s -X POST localhost:8080/v1/agents/generic_agent/execute \
 curl -s localhost:8080/v1/sessions/$SESSION
 ```
 
-Registry CRUD and tools arrive in later phases. Full reference:
+Agents and pipelines are edited over HTTP as validated, atomic writes to the
+same registry files. Tools arrive in a later phase. Full reference:
 [`docs/API.md`](docs/API.md).
 
 ## Security
@@ -128,7 +134,7 @@ This service can execute LLM-driven tool calls. **Treat it as remote code execut
 | 4 | SQLite store + async jobs + worker pool | done |
 | 5 | sequential pipeline (named IO) - **v1** | done |
 | 6 | DAG fan-out/fan-in + router | done |
-| 7 | registry CRUD API | todo |
+| 7 | registry CRUD API | done |
 | 8 | tools / function calling (gated) | todo |
 | 9 | hardening: retries, schema validation, metrics | todo |
 | 10 | Docker + GitOps deploy docs | todo |

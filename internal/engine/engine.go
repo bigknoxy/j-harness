@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bigknoxy/j-harness/internal/llm"
@@ -21,6 +22,8 @@ type Engine struct {
 	registry    *registry.Registry
 	client      llm.Client
 	maxParallel int
+
+	mu sync.RWMutex
 }
 
 // New builds an Engine. Both arguments are required. Pipeline steps run
@@ -35,6 +38,25 @@ func New(reg *registry.Registry, client llm.Client) (*Engine, error) {
 	return &Engine{registry: reg, client: client, maxParallel: runtime.GOMAXPROCS(0)}, nil
 }
 
+// SetRegistry swaps the registry snapshot used by subsequent executions. It is
+// safe to call while jobs are running: an in-flight run keeps the snapshot it
+// started with, and new runs see the new one.
+func (e *Engine) SetRegistry(reg *registry.Registry) {
+	if reg == nil {
+		return
+	}
+	e.mu.Lock()
+	e.registry = reg
+	e.mu.Unlock()
+}
+
+// registry returns the current registry snapshot.
+func (e *Engine) getRegistry() *registry.Registry {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.registry
+}
+
 // AgentResult is the outcome of running a single agent.
 type AgentResult struct {
 	AgentID    string
@@ -47,11 +69,12 @@ type AgentResult struct {
 func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResult, error) {
 	start := time.Now()
 
-	bp, ok := e.registry.Blueprint(agentID)
+	reg := e.getRegistry()
+	bp, ok := reg.Blueprint(agentID)
 	if !ok {
 		return AgentResult{}, fmt.Errorf("engine: unknown agent %q", agentID)
 	}
-	prompt, ok := e.registry.Prompt(agentID)
+	prompt, ok := reg.Prompt(agentID)
 	if !ok {
 		return AgentResult{}, fmt.Errorf("engine: missing prompt for agent %q", agentID)
 	}

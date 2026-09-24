@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bigknoxy/j-harness/internal/engine"
@@ -49,6 +50,9 @@ type API struct {
 	version  string
 	auth     string
 	logger   *log.Logger
+
+	// mu guards swap of the registry snapshot on registry writes.
+	mu sync.Mutex
 }
 
 // New validates the config and returns an API.
@@ -91,8 +95,40 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/v1/agents/", a.handleAgents)
 	mux.HandleFunc("/v1/pipelines/", a.handlePipelines)
 	mux.HandleFunc("/v1/sessions/", a.handleSessions)
+	mux.HandleFunc("/v1/registry/", a.handleRegistry)
 
 	return a.recoverer(a.logRequests(a.authenticate(mux)))
+}
+
+// currentRegistry returns the registry snapshot in use. Writes swap it under
+// mu, so reads take mu to get a consistent pointer.
+func (a *API) currentRegistry() *registry.Registry {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.registry
+}
+
+// mutate applies write under the write lock, then reloads the whole registry
+// from disk and swaps it into both the API and the engine. Reloading (rather
+// than patching maps) keeps the snapshot identical to a fresh process start and
+// lets a single validation pass reject cross-file breakage.
+func (a *API) mutate(w http.ResponseWriter, write func(*registry.Registry) error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := write(a.registry); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_registry_entry", err.Error())
+		return
+	}
+	reloaded, err := registry.Load(a.registry.Root())
+	if err != nil {
+		a.logger.Printf("reload registry after write: %v", err)
+		writeError(w, http.StatusInternalServerError, "reload_failed", err.Error())
+		return
+	}
+	a.registry = reloaded
+	a.engine.SetRegistry(reloaded)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (a *API) authenticate(next http.Handler) http.Handler {
@@ -138,7 +174,7 @@ func (a *API) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (a *API) handleReadyz(w http.ResponseWriter, r *http.Request) {
-	if a.registry == nil {
+	if a.currentRegistry() == nil {
 		writeError(w, http.StatusServiceUnavailable, "not_ready", "registry not loaded")
 		return
 	}
@@ -167,7 +203,7 @@ func (a *API) handleAgents(w http.ResponseWriter, r *http.Request) {
 // handleExecuteAgent validates the target, persists a PENDING job, enqueues it,
 // and returns 202 with the session id.
 func (a *API) handleExecuteAgent(w http.ResponseWriter, r *http.Request, agentID string) {
-	if _, ok := a.registry.Blueprint(agentID); !ok {
+	if _, ok := a.currentRegistry().Blueprint(agentID); !ok {
 		writeError(w, http.StatusNotFound, "not_found", "unknown agent "+agentID)
 		return
 	}
@@ -216,7 +252,7 @@ func (a *API) handlePipelines(w http.ResponseWriter, r *http.Request) {
 // handleExecutePipeline validates the target, persists a PENDING job whose
 // input is a JSON object of named pipeline inputs, and enqueues it.
 func (a *API) handleExecutePipeline(w http.ResponseWriter, r *http.Request, pipelineID string) {
-	p, ok := a.registry.Pipeline(pipelineID)
+	p, ok := a.currentRegistry().Pipeline(pipelineID)
 	if !ok {
 		writeError(w, http.StatusNotFound, "not_found", "unknown pipeline "+pipelineID)
 		return
