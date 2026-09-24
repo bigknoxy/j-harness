@@ -1,13 +1,12 @@
 // Command harness runs the j-harness agent execution service.
 //
-// Phase 0 is a bootstrap placeholder: it serves /healthz so the binary,
-// container, and CI pipeline are verifiable end to end. The registry,
-// engine, and full API are implemented in later phases (see tasks/roadmap.md).
+// It loads the file-based agent registry, builds an OpenAI-compatible LLM client
+// from the environment, and serves the synchronous HTTP API (see docs/API.md).
+// Async job execution arrives in a later phase (see tasks/roadmap.md).
 package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"log"
@@ -17,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bigknoxy/j-harness/internal/api"
 	"github.com/bigknoxy/j-harness/internal/engine"
 	"github.com/bigknoxy/j-harness/internal/llm"
 	"github.com/bigknoxy/j-harness/internal/registry"
@@ -55,16 +55,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("init engine: %v", err)
 	}
-	_ = eng // exposed over HTTP in Phase 3
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": version})
+	handler, err := api.New(api.Config{
+		Engine:    eng,
+		Registry:  reg,
+		Version:   version,
+		AuthToken: os.Getenv("HARNESS_AUTH_TOKEN"), // env-only; never logged
 	})
+	if err != nil {
+		log.Fatalf("init api: %v", err)
+	}
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           mux,
+		Handler:           handler.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -84,12 +88,6 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("graceful shutdown failed: %v", err)
 	}
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
 }
 
 func envOr(key, fallback string) string {

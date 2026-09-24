@@ -4,16 +4,19 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **Phase 3 — HTTP API (sync) + middleware**
-  - [ ] `internal/api`: `POST /v1/agents/{id}/execute` (sync), `GET /readyz`
-  - [ ] middleware: request logging, panic recovery, bearer auth (`HARNESS_AUTH_TOKEN`)
-  - [ ] JSON error envelope + status codes (400/401/404/405/500)
-  - [ ] `httptest`-based handler tests
+- [ ] **Phase 4 — SQLite store + async jobs + bounded worker pool + orphan requeue**
+  - [ ] `internal/store`: `Store` interface + SQLite (WAL) implementation (jobs + step results)
+  - [ ] job state machine: `PENDING→RUNNING→COMPLETED|FAILED|CANCELED`
+  - [ ] bounded in-process worker pool (default = CPU count)
+  - [ ] startup requeue of orphaned `RUNNING` jobs
+  - [ ] async API: `POST .../execute` → `202 {session_id}`; `GET /v1/sessions/{id}`
+  - [ ] `GET /readyz` reflects store readiness
+  - [ ] tests (store round-trip, requeue, async handler)
 
 ## Next action
 
-Build the sync execute handler over `engine.RunAgent`, then add auth/logging/recovery
-middleware and tests.
+Define the `Store` interface (create/get/update job, append step result, list orphaned),
+implement the SQLite adapter with WAL, then wire a bounded worker pool that drains the queue.
 
 ## Blockers
 
@@ -30,6 +33,17 @@ None.
     per-request base_url/model/timeout/json_object), `Fake`
   - `internal/engine`: `New`, `RunAgent` (blueprint+prompt → request → response, JSON validation)
   - `main` wires registry + env-configured client + engine
+- [x] **Phase 3 — HTTP API (sync) + middleware** (verified: `make fmt-check vet test build`
+  passed; smoke green; `internal/api` tests cover success, unknown agent, bad bodies,
+  405 `Allow`, unknown routes, client error → 500, bearer auth (missing/wrong/valid),
+  unauthenticated `/healthz`/`/readyz`, panic recovery)
+  - `internal/api`: `New(Config)` + `Handler()`; `POST /v1/agents/{id}/execute` (sync,
+    200 `{agent_id,output,tokens,duration_ms}`), `GET /healthz`, `GET /readyz`
+  - middleware chain: recoverer → request logging → bearer auth (only `/v1/*` when
+    `HARNESS_AUTH_TOKEN` set) → mux
+  - JSON error envelope `{"error":{"code,message}}`; strict body decoding (1 MiB cap,
+    unknown fields rejected, single JSON object, `input_data` required)
+  - `main` now serves `handler.Handler()` instead of an inline mux
 
 ## Notes / working memory
 

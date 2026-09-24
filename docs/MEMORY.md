@@ -7,6 +7,20 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24 04:10: Phase 3 ships the execute endpoint *synchronously*; async is Phase 4.**
+  `POST /v1/agents/{id}/execute` blocks on `engine.RunAgent` and returns `200` with
+  `{agent_id,output,tokens,duration_ms}` rather than the planned `202 {session_id}`. The
+  handler decodes a strict `{"input_data":"..."}` body and the error envelope is
+  `{"error":{"code","message"}}`. This keeps the transport thin and proves the engine path
+  end to end before the job queue exists; the async shape reuses the same `input_data` field
+  and the same `output` string, so it is forward compatible.
+
+- **2026-09-24 04:10: API middleware order = recoverer → logging → auth → mux.** Panic
+  recovery is outermost so a panic still produces a logged `500` envelope; auth only guards
+  `/v1/*` and is skipped entirely when `HARNESS_AUTH_TOKEN` is unset, keeping `/healthz` and
+  `/readyz` always reachable for probes. Request bodies are capped at 1 MiB and decoded with
+  `DisallowUnknownFields` to protect the 2-core host.
+
 - **2026-09-24 04:06: Template refs are validated against step *ids*, not output names.**
   `{{ steps.<id>.output }}`/`.path` resolves by step id (output names are free-form and may
   repeat across router branches). Router `goto` may target *later* steps (that is the branch);
