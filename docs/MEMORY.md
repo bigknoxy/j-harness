@@ -7,6 +7,14 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Dogfooded against a real provider (NVIDIA NIM).**
+  Ran the shipped registry through the async API end to end. `triage` classified a billing
+  complaint as `{"category":"billing","priority":"high"}` (203 tokens) and a crash report as
+  `technical`; `support_flow` routed to `billing_reply` / `tech_reply` respectively and marked
+  the other two branches `SKIPPED`, returning the agent reply as the run result. Provider was
+  NVIDIA NIM (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`) via `OPENAI_BASE_URL`; the
+  homelab Ollama box was saturated (a 0.8B completion took >150s), so NIM was used instead.
+  Confirms the OpenAI-compatible client works against a real hosted endpoint.
 - **2026-09-24: JSON Schemas live inside the registry bundle (`agent-registry/schemas/`).**
   Blueprints reference schemas with a path relative to the registry root
   (`schemas/triage.json`), so the schema directory must sit **inside** `agent-registry/` for

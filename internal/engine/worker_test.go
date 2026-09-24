@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -177,7 +178,7 @@ func TestSubmitQueueFull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocking := &blockingClient{release: make(chan struct{})}
+	blocking := &blockingClient{started: make(chan struct{}), release: make(chan struct{})}
 	eng, _ := New(reg, blocking)
 	pool, err := NewPool(PoolConfig{Store: st, Engine: eng, Workers: 1, Queue: 1, Logger: log.New(io.Discard, "", 0)})
 	if err != nil {
@@ -189,6 +190,9 @@ func TestSubmitQueueFull(t *testing.T) {
 	if err := pool.Submit(ctx, model.Job{SessionID: "b1", Kind: model.KindAgent, TargetID: "generic_agent"}); err != nil {
 		t.Fatalf("submit b1: %v", err)
 	}
+	// Wait until the single worker has dequeued b1 and is blocked in Complete,
+	// so b2 is guaranteed to occupy the queue (capacity 1) when submitted.
+	<-blocking.started
 	if err := pool.Submit(ctx, model.Job{SessionID: "b2", Kind: model.KindAgent, TargetID: "generic_agent"}); err != nil {
 		t.Fatalf("submit b2: %v", err)
 	}
@@ -198,10 +202,16 @@ func TestSubmitQueueFull(t *testing.T) {
 	close(blocking.release)
 }
 
-// blockingClient blocks Complete until release is closed.
-type blockingClient struct{ release chan struct{} }
+// blockingClient blocks Complete until release is closed, and signals started
+// (once) the first time Complete is entered.
+type blockingClient struct {
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
 
 func (b *blockingClient) Complete(ctx context.Context, req llm.Request) (llm.Response, error) {
+	b.once.Do(func() { close(b.started) })
 	<-b.release
 	return llm.Response{Content: "ok"}, nil
 }

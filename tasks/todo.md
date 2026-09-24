@@ -4,17 +4,18 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **D8 — Dogfood: real runs via Ollama + NVIDIA NIM**
-  - [ ] run a single agent (`triage`) against Ollama `qwen3:8b`
-  - [ ] run the `support_flow` pipeline end-to-end against Ollama
-  - [ ] repeat against NVIDIA NIM (working model) to prove provider-agnosticism
-  - [ ] record results in `docs/MEMORY.md` / `tasks/lessons.md`
+- [ ] **Phase 6 — Parallel DAG (fan-out/fan-in)**
+  - [ ] dependency-aware scheduler: a step's predecessors must all finish first
+  - [ ] run independent branches concurrently (bounded by the worker pool)
+  - [ ] join step: declared predecessors gate execution; merge their outputs
+  - [ ] validation: reject cycles at load time
+  - [ ] tests + docs
 
 ## Next action
 
-Boot `bin/harness` against Ollama (`OPENAI_BASE_URL=http://192.168.8.136:11434/v1`,
-model `qwen3:8b`), then submit a `triage` agent job and poll the session. Do not overload
-the homelab: run one job at a time.
+Add explicit step dependencies (`needs: [ids]`) to the schema, or derive them from
+template refs. Deriving from refs keeps blueprints terse; explicit `needs` is clearer for
+joins. Decide and record in `docs/MEMORY.md`.
 
 ## Blockers
 
@@ -39,6 +40,15 @@ None.
 
 ## Done
 
+- [x] **D8 — Dogfood: real runs via a hosted OpenAI-compatible provider**
+  (verified: ran the checked-in registry through the async API against NVIDIA NIM
+  `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`. `triage` classified billing -> high and a
+  crash -> technical; `support_flow` routed correctly to `billing_reply` / `tech_reply` with
+  the other branches `SKIPPED`. Homelab Ollama was saturated, so it was not used. Notes in
+  `docs/MEMORY.md`.)
+- [x] **Delivery track D1–D7** (branch protection, CI, GoReleaser releases, installer +
+  uninstaller, Pages site, repo polish, README badges). v0.1.0 release published with
+  linux/darwin/windows amd64+arm64 assets; one-liner install/uninstall verified end to end.
 - [x] **Phase 0 — Bootstrap** (CI + Pages green; live at https://bigknoxy.github.io/j-harness/)
 - [x] **Phase 1 — Registry** (load/validate/atomic-write + tests)
 - [x] **Phase 2 — LLM client + single-agent execution**
