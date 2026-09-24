@@ -107,7 +107,7 @@ func TestLoadRejectsBadVersion(t *testing.T) {
 	}
 }
 
-func TestPipelineForwardRef(t *testing.T) {
+func TestPipelineForwardRefAllowed(t *testing.T) {
 	root := writeFixture(t)
 	mustWriteJSON(t, filepath.Join(root, PipelinesDir, "fwd.json"), model.Pipeline{
 		PipelineID: "fwd", Version: 1,
@@ -116,8 +116,52 @@ func TestPipelineForwardRef(t *testing.T) {
 			{ID: "b", AgentID: "triage", Input: "hi", Output: "b_out"},
 		},
 	})
+	r, err := Load(root)
+	if err != nil {
+		t.Fatalf("expected forward reference to load as a DAG edge: %v", err)
+	}
+	if _, ok := r.Pipeline("fwd"); !ok {
+		t.Error("missing pipeline fwd")
+	}
+}
+
+func TestPipelineCycleRejected(t *testing.T) {
+	root := writeFixture(t)
+	mustWriteJSON(t, filepath.Join(root, PipelinesDir, "cycle.json"), model.Pipeline{
+		PipelineID: "cycle", Version: 1, Inputs: []string{"user_input"},
+		Steps: []model.Step{
+			{ID: "a", AgentID: "triage", Input: "{{ steps.b.output }}", Output: "x"},
+			{ID: "b", AgentID: "triage", Input: "{{ steps.a.output }}", Output: "y"},
+		},
+	})
 	if _, err := Load(root); err == nil {
-		t.Fatal("expected error for forward reference")
+		t.Fatal("expected error for dependency cycle")
+	}
+}
+
+func TestPipelineRejectsUnknownStepRef(t *testing.T) {
+	root := writeFixture(t)
+	mustWriteJSON(t, filepath.Join(root, PipelinesDir, "unknownstep.json"), model.Pipeline{
+		PipelineID: "unknownstep", Version: 1, Inputs: []string{"user_input"},
+		Steps: []model.Step{
+			{ID: "a", AgentID: "triage", Input: "{{ steps.ghost.output }}", Output: "x"},
+		},
+	})
+	if _, err := Load(root); err == nil {
+		t.Fatal("expected error for reference to unknown step")
+	}
+}
+
+func TestPipelineRejectsUnknownNeeds(t *testing.T) {
+	root := writeFixture(t)
+	mustWriteJSON(t, filepath.Join(root, PipelinesDir, "badneeds.json"), model.Pipeline{
+		PipelineID: "badneeds", Version: 1, Inputs: []string{"user_input"},
+		Steps: []model.Step{
+			{ID: "a", AgentID: "triage", Input: "hi", Output: "x", Needs: []string{"ghost"}},
+		},
+	})
+	if _, err := Load(root); err == nil {
+		t.Fatal("expected error for unknown needs entry")
 	}
 }
 

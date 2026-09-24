@@ -12,7 +12,7 @@ Live phase tracker. Update the Status column as phases complete. v1 shipped at e
 | 3 | HTTP API (sync) + middleware (auth/logging/recovery) | ✅ done |
 | 4 | `store` (SQLite) + async jobs + bounded worker pool + orphan requeue | ✅ done |
 | 5 | Sequential pipeline + `router` primitive (named IO) — **v1** | ✅ done |
-| 6 | Parallel DAG fan-out/fan-in (join step) | 🚧 in progress |
+| 6 | Parallel DAG fan-out/fan-in (join step) | ✅ done |
 | 7 | Registry CRUD API (create/update/list agents & pipelines) | ⬜ todo |
 | 8 | Tools / function calling (gated) | ⬜ todo |
 | 9 | Hardening: retries/backoff, JSON-schema validation, metrics | ⬜ todo |

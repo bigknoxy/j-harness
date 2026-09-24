@@ -74,6 +74,37 @@ A DAG of steps. Steps have a **named output** that later steps reference.
 > branch ran" should **omit the top-level `output`**. With no `output` template, the result is
 > the last agent step that executed. Steps not reached by a router are recorded as `SKIPPED`.
 
+### DAG execution
+
+Steps form a directed acyclic graph. A step's dependencies come from three sources:
+
+- **template references** in its `input` (`{{ steps.<id>.output }}`)
+- an explicit **`needs`** list of step ids
+- **router branch edges**: every `goto` target depends on its router step
+
+A step runs once all its dependencies have completed. Independent steps (for example the two
+fan-out legs of a diamond) run **concurrently**, bounded by the engine's parallelism limit
+(`GOMAXPROCS`). A join step lists its predecessors via `needs` and/or by referencing their
+outputs, then merges them. Cycles are rejected at load time.
+
+```json
+{
+  "id": "digest_flow",
+  "steps": [
+    { "id": "summarize", "agent_id": "summarizer",
+      "input": "{{ inputs.user_input }}", "output": "summary" },
+    { "id": "assess_risk", "agent_id": "risk_assessor",
+      "input": "{{ inputs.user_input }}", "output": "risk" },
+    { "id": "combine", "agent_id": "generic_agent",
+      "input": "{{ steps.summarize.output }} | {{ steps.assess_risk.output }}",
+      "output": "digest", "needs": ["summarize", "assess_risk"] }
+  ],
+  "output": "{{ steps.combine.output }}"
+}
+```
+
+`summarize` and `assess_risk` run at the same time; `combine` waits for both.
+
 ### Template grammar
 
 Strict, non-evaluating, validated at load time:

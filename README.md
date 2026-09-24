@@ -14,9 +14,10 @@ vLLM, llama.cpp server), and exposes an async HTTP API: submit a job, poll for t
 
 Single binary. Embedded SQLite. No external services required.
 
-> **Status: v1 (Phase 5).** Single agents and sequential pipelines run end to end over an
+> **Status: Phase 6.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
 > async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`).
-> Branching routers, registry CRUD, and tools arrive in later phases. See
+> Branching routers and parallel DAGs are supported today; registry CRUD and tools arrive in
+> later phases. See
 > [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
 > [`tasks/todo.md`](tasks/todo.md) for the current work item.
 
@@ -118,20 +119,20 @@ This service can execute LLM-driven tool calls. **Treat it as remote code execut
 
 ## Roadmap
 
-| Phase | Deliverable |
-|---|---|
-| 0 | bootstrap: repo, CI, docs, health endpoint |
-| 1 | registry: load/validate/atomic-write blueprints + prompts |
-| 2 | llm client + single-agent execution |
-| 3 | HTTP API + middleware |
-| 4 | SQLite store + async jobs + worker pool |
-| 5 | sequential pipeline (named IO) - **v1** |
-| 6 | DAG fan-out/fan-in + router |
-| 7 | registry CRUD API |
-| 8 | tools / function calling (gated) |
-| 9 | hardening: retries, schema validation, metrics |
-| 10 | Docker + GitOps deploy docs |
-| 11 | optional Redis store adapter |
+| Phase | Deliverable | Status |
+|---|---|---|
+| 0 | bootstrap: repo, CI, docs, health endpoint | done |
+| 1 | registry: load/validate/atomic-write blueprints + prompts | done |
+| 2 | llm client + single-agent execution | done |
+| 3 | HTTP API + middleware | done |
+| 4 | SQLite store + async jobs + worker pool | done |
+| 5 | sequential pipeline (named IO) - **v1** | done |
+| 6 | DAG fan-out/fan-in + router | done |
+| 7 | registry CRUD API | todo |
+| 8 | tools / function calling (gated) | todo |
+| 9 | hardening: retries, schema validation, metrics | todo |
+| 10 | Docker + GitOps deploy docs | todo |
+| 11 | optional Redis store adapter | todo |
 
 ## Documentation
 

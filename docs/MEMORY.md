@@ -7,6 +7,17 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Phase 6 — dependencies are derived from refs, `needs`, and router edges.**
+  `Engine.RunPipeline` is a concurrent DAG scheduler. Step dependencies come from three
+  sources, unioned: (a) `{{ steps.<id>.output }}` refs in a step's input, (b) an explicit
+  `needs: [ids]` list on the step, and (c) a router's route `goto` targets. Deriving from refs
+  keeps linear chains terse (no boilerplate edges); `needs` makes joins explicit and readable;
+  router gotos are control-flow edges regardless. Independent steps run concurrently, bounded
+  by `GOMAXPROCS` (the host has 2 cores and local inference serializes, so unbounded fan-out
+  would only thrash). A step whose predecessor `FAILED` or was `SKIPPED` is itself `SKIPPED`,
+  so branch losers are recorded without running. Cycles and unknown refs/needs are rejected at
+  registry **load** time (`internal/pipeline/graph.go: Deps`), keeping bad pipelines out of
+  the engine.
 - **2026-09-24: Dogfooded against a real provider (NVIDIA NIM).**
   Ran the shipped registry through the async API end to end. `triage` classified a billing
   complaint as `{"category":"billing","priority":"high"}` (203 tokens) and a crash report as

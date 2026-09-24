@@ -1,0 +1,12 @@
+{
+  "id": "risk_assessor",
+  "description": "Flag risk, urgency, or compliance concerns in a message.",
+  "prompt_path": "prompts/risk_assessor.md",
+  "model": "llama3.2",
+  "temperature": 0.0,
+  "max_tokens": 128,
+  "timeout_seconds": 300,
+  "output_format": "text",
+  "tools": [],
+  "version": 1
+}

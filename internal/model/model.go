@@ -94,12 +94,13 @@ func (c Condition) Operator() string {
 // step branches based on a condition over its resolved input and does not run
 // an agent.
 type Step struct {
-	ID      string  `json:"id"`
-	AgentID string  `json:"agent_id,omitempty"`
-	Input   string  `json:"input"`
-	Output  string  `json:"output,omitempty"`
-	Router  bool    `json:"router,omitempty"`
-	Routes  []Route `json:"routes,omitempty"`
+	ID      string   `json:"id"`
+	AgentID string   `json:"agent_id,omitempty"`
+	Input   string   `json:"input"`
+	Output  string   `json:"output,omitempty"`
+	Router  bool     `json:"router,omitempty"`
+	Routes  []Route  `json:"routes,omitempty"`
+	Needs   []string `json:"needs,omitempty"`
 }
 
 // Pipeline is a DAG of steps with declared inputs and a final output template.
@@ -135,6 +136,9 @@ const (
 	StatusFailed JobStatus = "FAILED"
 	// StatusCanceled is a job stopped at the caller's request.
 	StatusCanceled JobStatus = "CANCELED"
+	// StatusSkipped is a pipeline step not executed because a branch was taken
+	// or a dependency was skipped.
+	StatusSkipped JobStatus = "SKIPPED"
 )
 
 // Job is a unit of work submitted through the API and tracked in the store.
