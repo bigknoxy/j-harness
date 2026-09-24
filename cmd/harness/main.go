@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bigknoxy/j-harness/internal/engine"
+	"github.com/bigknoxy/j-harness/internal/llm"
 	"github.com/bigknoxy/j-harness/internal/registry"
 )
 
@@ -40,6 +42,20 @@ func main() {
 	}
 	log.Printf("registry %s: %d blueprint(s), %d pipeline(s)",
 		*registryPath, len(reg.BlueprintIDs()), len(reg.PipelineIDs()))
+
+	client, err := llm.NewOpenAI(llm.OpenAIConfig{
+		BaseURL: envOr("OPENAI_BASE_URL", "http://127.0.0.1:11434/v1"),
+		Model:   envOr("OPENAI_MODEL", ""),
+		APIKey:  os.Getenv("OPENAI_API_KEY"), // env-only; never logged
+	})
+	if err != nil {
+		log.Fatalf("init llm client: %v", err)
+	}
+	eng, err := engine.New(reg, client)
+	if err != nil {
+		log.Fatalf("init engine: %v", err)
+	}
+	_ = eng // exposed over HTTP in Phase 3
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
