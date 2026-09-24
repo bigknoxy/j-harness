@@ -7,6 +7,25 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Phase 9 — retries live in a client decorator; schema errors get one repair turn.**
+  Retries wrap the `llm.Client` (`llm.NewRetry`), not the engine, so any code path that calls
+  the model benefits and the engine stays a pure policy layer. Only transport failures and
+  HTTP 429/5xx are retried (exponential backoff with jitter, default 2 retries) — a 4xx like
+  400/401 is a caller bug and fails fast. Retry is off when `Retry.MaxAttempts <= 1`.
+  Separately, when a blueprint has `output_schema`, the parsed JSON is validated against it;
+  on mismatch the engine makes **one** repair turn (feeding the validation error back) before
+  failing, mirroring the tool-loop bound. Output schemas are compiled at registry load so a
+  malformed schema fails fast at startup, not on the first request.
+- **2026-09-24: Phase 9 — `internal/schema` is a deliberately small draft-07 subset.**
+  Supports `type`, `required`, `properties`, `additionalProperties` (bool), `enum`,
+  `minimum`/`maximum`, `minLength`/`maxLength`, `minItems`/`maxItems`, and `items`. That is
+  enough for structured agent output; pulling a full JSON-Schema library was rejected to keep
+  the dependency count at one (see the SQLite decision).
+- **2026-09-24: Phase 9 — metrics are in-process counters exposed on `/metrics`.**
+  A tiny `internal/metrics` registry of atomic counters (submissions, completions, failures,
+  retries, schema failures) rendered as Prometheus text. No Prometheus client dependency; the
+  endpoint is unauthenticated like `/healthz` so scrapers work without a token.
+
 - **2026-09-24: Phase 8 — tools are opt-in, allowlisted, and fail-closed.**
   Function calling is disabled unless `ENABLE_TOOLS=true` is set, in which case the process
   builds an `internal/tools.Registry` from a fixed set of built-in tools and hands it to the

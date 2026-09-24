@@ -142,10 +142,11 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (Response, err
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg := truncate(string(raw), 300)
 		if parsed.Error != nil && parsed.Error.Message != "" {
-			return Response{}, fmt.Errorf("llm: endpoint error %d: %s", resp.StatusCode, parsed.Error.Message)
+			msg = parsed.Error.Message
 		}
-		return Response{}, fmt.Errorf("llm: endpoint error %d: %s", resp.StatusCode, truncate(string(raw), 300))
+		return Response{}, &HTTPError{StatusCode: resp.StatusCode, Message: msg}
 	}
 	if len(parsed.Choices) == 0 {
 		return Response{}, fmt.Errorf("llm: response contained no choices")

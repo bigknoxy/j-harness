@@ -44,6 +44,8 @@ services in v1: configuration is git-tracked files and job state is embedded SQL
 | `internal/llm` | `Client` interface, OpenAI-compatible impl, fake for tests |
 | `internal/engine` | worker pool, job state machine, step execution, restart requeue |
 | `internal/pipeline` | DAG resolution, template grammar, router conditions |
+| `internal/schema` | small JSON Schema (draft-07 subset) validator for `output_schema` |
+| `internal/metrics` | in-process counters rendered as Prometheus text on `/metrics` |
 | `internal/store` | `Store` interface + SQLite implementation (Redis adapter later) |
 | `internal/api` | HTTP handlers + middleware (auth, logging, recovery) |
 
@@ -61,6 +63,19 @@ services in v1: configuration is git-tracked files and job state is embedded SQL
      all declared predecessors.
 3. On success the job becomes `COMPLETED`; on error `FAILED` (with a message). Clients poll
    `GET /v1/sessions/{id}`.
+
+## Hardening
+
+- **Retries:** `llm.NewRetry` wraps the `llm.Client`. Transport failures and HTTP `429`/`5xx`
+  are retried with exponential backoff plus jitter (max attempts from `HARNESS_RETRIES`,
+  default 3; `1` disables). `4xx` fails fast. Retries live in the client, not the engine, so
+  every call site benefits.
+- **Output schemas:** a blueprint with `output_schema` (requires `output_format: "json"`) has
+  its JSON output validated against the referenced schema. On mismatch the engine makes
+  exactly one repair turn, feeding the validation error back to the model, then fails.
+- **Metrics:** in-process counters (`harness_jobs_submitted_total`, `harness_jobs_completed_total`,
+  `harness_jobs_failed_total`, `harness_llm_retries_total`, `harness_schema_failures_total`)
+  are exposed as Prometheus text on unauthenticated `GET /metrics`.
 
 ## Job state machine
 

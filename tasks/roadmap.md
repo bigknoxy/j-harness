@@ -15,8 +15,8 @@ Live phase tracker. Update the Status column as phases complete. v1 shipped at e
 | 6 | Parallel DAG fan-out/fan-in (join step) | ✅ done |
 | 7 | Registry CRUD API (create/update/list agents & pipelines) | ✅ done |
 | 8 | Tools / function calling (gated) | ✅ done |
-| 9 | Hardening: retries/backoff, JSON-schema validation, metrics | 🚧 in progress |
-| 10 | Docker + compose (harness + ollama), GitOps deploy docs | ⬜ todo |
+| 9 | Hardening: retries/backoff, JSON-schema validation, metrics | ✅ done |
+| 10 | Docker + compose (harness + ollama), GitOps deploy docs | 🚧 in progress |
 | 11 | Optional Redis `Store` adapter | ⬜ todo |
 
 ## Delivery track (professional polish)

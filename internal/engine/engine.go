@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bigknoxy/j-harness/internal/llm"
+	"github.com/bigknoxy/j-harness/internal/metrics"
 	"github.com/bigknoxy/j-harness/internal/model"
 	"github.com/bigknoxy/j-harness/internal/registry"
 	"github.com/bigknoxy/j-harness/internal/tools"
@@ -26,6 +27,7 @@ type Engine struct {
 
 	mu           sync.RWMutex
 	toolsEnabled *tools.Registry
+	metrics      *metrics.Metrics
 }
 
 // New builds an Engine. Both arguments are required. Pipeline steps run
@@ -46,6 +48,19 @@ func (e *Engine) SetTools(reg *tools.Registry) {
 	e.mu.Lock()
 	e.toolsEnabled = reg
 	e.mu.Unlock()
+}
+
+// SetMetrics attaches counters used to report schema failures. Optional.
+func (e *Engine) SetMetrics(m *metrics.Metrics) {
+	e.mu.Lock()
+	e.metrics = m
+	e.mu.Unlock()
+}
+
+func (e *Engine) getMetrics() *metrics.Metrics {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.metrics
 }
 
 // enabledTools returns the enabled tool allowlist, or nil when tools are off.
@@ -128,6 +143,7 @@ func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResu
 	if err != nil {
 		return AgentResult{DurationMS: time.Since(start).Milliseconds()}, err
 	}
+	tokens := resp.TotalTokens
 
 	content := strings.TrimSpace(resp.Content)
 	if bp.OutputFormat == model.OutputJSON {
@@ -135,14 +151,60 @@ func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResu
 			return AgentResult{DurationMS: time.Since(start).Milliseconds()},
 				fmt.Errorf("engine: agent %q returned invalid JSON: %w", agentID, err)
 		}
+		if outSchema := reg.OutputSchema(agentID); outSchema != nil {
+			if err := outSchema.Validate(stripCodeFence(content)); err != nil {
+				repaired, repairTokens, repairedErr := e.repairSchema(ctx, agentID, req, content, err)
+				if repairedErr != nil {
+					e.getMetrics().Inc(metrics.SchemaFailures)
+					return AgentResult{DurationMS: time.Since(start).Milliseconds()},
+						fmt.Errorf("engine: agent %q output does not match schema: %w", agentID, err)
+				}
+				content = repaired
+				tokens += repairTokens
+			}
+		}
 	}
 
 	return AgentResult{
 		AgentID:    agentID,
 		Output:     content,
-		Tokens:     resp.TotalTokens,
+		Tokens:     tokens,
 		DurationMS: time.Since(start).Milliseconds(),
 	}, nil
+}
+
+// repairSchema makes a single corrective turn when a schema-validated output
+// fails validation. It returns the corrected content (already re-validated),
+// the extra tokens spent, or an error.
+func (e *Engine) repairSchema(ctx context.Context, agentID string, base llm.Request, content string, verr error) (string, int, error) {
+	req := base
+	req.Messages = []llm.Message{
+		{Role: "system", Content: base.SystemPrompt},
+		{Role: "user", Content: base.UserInput},
+		{Role: "assistant", Content: content},
+		{Role: "user", Content: fmt.Sprintf(
+			"Your previous reply did not satisfy the required JSON schema. Problem: %s. "+
+				"Reply with only a corrected JSON object that satisfies the schema.", verr),
+		},
+	}
+	req.Tools = nil
+	req.JSONOutput = true
+
+	resp, err := e.client.Complete(ctx, req)
+	if err != nil {
+		return "", 0, err
+	}
+	out := strings.TrimSpace(resp.Content)
+	trimmed := stripCodeFence(out)
+	if err := validateJSONObject(trimmed); err != nil {
+		return "", resp.TotalTokens, err
+	}
+	if outSchema := e.getRegistry().OutputSchema(agentID); outSchema != nil {
+		if err := outSchema.Validate(trimmed); err != nil {
+			return "", resp.TotalTokens, err
+		}
+	}
+	return out, resp.TotalTokens, nil
 }
 
 // validateJSONObject rejects content that is not a single JSON object. Models

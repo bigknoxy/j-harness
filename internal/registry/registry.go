@@ -15,6 +15,7 @@ import (
 
 	"github.com/bigknoxy/j-harness/internal/model"
 	"github.com/bigknoxy/j-harness/internal/pipeline"
+	"github.com/bigknoxy/j-harness/internal/schema"
 	"github.com/bigknoxy/j-harness/internal/tools"
 )
 
@@ -35,6 +36,7 @@ type Registry struct {
 	blueprints map[string]model.AgentBlueprint
 	prompts    map[string]string
 	pipelines  map[string]model.Pipeline
+	schemas    map[string]*schema.Schema
 }
 
 // Root returns the registry root directory.
@@ -56,6 +58,12 @@ func (r *Registry) Prompt(agentID string) (string, bool) {
 func (r *Registry) Pipeline(id string) (model.Pipeline, bool) {
 	p, ok := r.pipelines[id]
 	return p, ok
+}
+
+// OutputSchema returns the compiled output schema for the given blueprint id,
+// or nil when the blueprint declares no output_schema.
+func (r *Registry) OutputSchema(agentID string) *schema.Schema {
+	return r.schemas[agentID]
 }
 
 // BlueprintIDs returns all blueprint ids, sorted.
@@ -80,6 +88,7 @@ func Load(root string) (*Registry, error) {
 		blueprints: map[string]model.AgentBlueprint{},
 		prompts:    map[string]string{},
 		pipelines:  map[string]model.Pipeline{},
+		schemas:    map[string]*schema.Schema{},
 	}
 	if err := r.loadBlueprints(); err != nil {
 		return nil, err
@@ -121,6 +130,13 @@ func (r *Registry) loadBlueprints() error {
 			return fmt.Errorf("blueprint %s: read prompt: %w", e.Name(), err)
 		}
 		r.prompts[bp.ID] = string(promptBytes)
+		if bp.OutputSchema != "" {
+			compiled, err := r.compileOutputSchema(bp)
+			if err != nil {
+				return fmt.Errorf("blueprint %s: %w", e.Name(), err)
+			}
+			r.schemas[bp.ID] = compiled
+		}
 		r.blueprints[bp.ID] = bp
 	}
 	return nil
@@ -182,7 +198,33 @@ func (r *Registry) validateBlueprint(filenameID string, bp *model.AgentBlueprint
 	default:
 		return fmt.Errorf("invalid output_format %q", bp.OutputFormat)
 	}
+	if bp.OutputSchema != "" {
+		if bp.OutputFormat != model.OutputJSON {
+			return errors.New("output_schema requires output_format \"json\"")
+		}
+		if _, err := safeRel(bp.OutputSchema); err != nil {
+			return fmt.Errorf("output_schema: %w", err)
+		}
+	}
 	return nil
+}
+
+// compileOutputSchema reads and compiles the schema referenced by bp's
+// output_schema path (relative to the registry root).
+func (r *Registry) compileOutputSchema(bp model.AgentBlueprint) (*schema.Schema, error) {
+	rel, err := safeRel(bp.OutputSchema)
+	if err != nil {
+		return nil, fmt.Errorf("output_schema: %w", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(r.root, rel))
+	if err != nil {
+		return nil, fmt.Errorf("output_schema: %w", err)
+	}
+	compiled, err := schema.Compile(raw)
+	if err != nil {
+		return nil, err
+	}
+	return compiled, nil
 }
 
 func (r *Registry) validatePipeline(filenameID string, p *model.Pipeline) error {
