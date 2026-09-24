@@ -37,6 +37,5 @@
       "input": "{{ inputs.user_input }}",
       "output": "reply"
     }
-  ],
-  "output": "{{ steps.generic_reply.output }}"
+  ]
 }

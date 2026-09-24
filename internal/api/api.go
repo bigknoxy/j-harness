@@ -89,6 +89,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/readyz", a.handleReadyz)
 
 	mux.HandleFunc("/v1/agents/", a.handleAgents)
+	mux.HandleFunc("/v1/pipelines/", a.handlePipelines)
 	mux.HandleFunc("/v1/sessions/", a.handleSessions)
 
 	return a.recoverer(a.logRequests(a.authenticate(mux)))
@@ -190,6 +191,67 @@ func (a *API) handleExecuteAgent(w http.ResponseWriter, r *http.Request, agentID
 			return
 		}
 		a.logger.Printf("submit agent job %s: %v", agentID, err)
+		writeError(w, http.StatusInternalServerError, "submit_failed", err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusAccepted, submitResponse{SessionID: job.SessionID, Status: string(model.StatusPending)})
+}
+
+// handlePipelines routes POST /v1/pipelines/{id}/execute.
+func (a *API) handlePipelines(w http.ResponseWriter, r *http.Request) {
+	rest := strings.TrimPrefix(r.URL.Path, "/v1/pipelines/")
+	id, action, ok := splitTwo(rest)
+	if !ok || action != "execute" || id == "" {
+		writeError(w, http.StatusNotFound, "not_found", "unknown route")
+		return
+	}
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w, http.MethodPost)
+		return
+	}
+	a.handleExecutePipeline(w, r, id)
+}
+
+// handleExecutePipeline validates the target, persists a PENDING job whose
+// input is a JSON object of named pipeline inputs, and enqueues it.
+func (a *API) handleExecutePipeline(w http.ResponseWriter, r *http.Request, pipelineID string) {
+	p, ok := a.registry.Pipeline(pipelineID)
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found", "unknown pipeline "+pipelineID)
+		return
+	}
+
+	inputs, err := decodePipelineRequest(w, r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	for _, name := range p.Inputs {
+		if strings.TrimSpace(inputs[name]) == "" {
+			writeError(w, http.StatusBadRequest, "bad_request", "missing required input "+name)
+			return
+		}
+	}
+	encoded, err := json.Marshal(inputs)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+
+	job := model.Job{
+		SessionID: newSessionID(),
+		Kind:      model.KindPipeline,
+		TargetID:  pipelineID,
+		Status:    model.StatusPending,
+		Input:     string(encoded),
+	}
+	if err := a.pool.Submit(r.Context(), job); err != nil {
+		if errors.Is(err, engine.ErrQueueFull) {
+			writeError(w, http.StatusServiceUnavailable, "queue_full", "job queue is full, retry later")
+			return
+		}
+		a.logger.Printf("submit pipeline job %s: %v", pipelineID, err)
 		writeError(w, http.StatusInternalServerError, "submit_failed", err.Error())
 		return
 	}
@@ -335,6 +397,29 @@ func decodeExecuteRequest(w http.ResponseWriter, r *http.Request) (executeReques
 		return executeRequest{}, errors.New("field \"input_data\" is required")
 	}
 	return req, nil
+}
+
+// decodePipelineRequest strictly decodes a pipeline execute body: a JSON object
+// mapping input names to string values.
+func decodePipelineRequest(w http.ResponseWriter, r *http.Request) (map[string]string, error) {
+	body := http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	defer body.Close()
+
+	var inputs map[string]string
+	dec := json.NewDecoder(body)
+	if err := dec.Decode(&inputs); err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, errors.New("empty request body")
+		}
+		return nil, errors.New("invalid JSON body: " + err.Error())
+	}
+	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return nil, errors.New("request body must contain a single JSON object")
+	}
+	if len(inputs) == 0 {
+		return nil, errors.New("request body must contain at least one input")
+	}
+	return inputs, nil
 }
 
 // --- helpers ---

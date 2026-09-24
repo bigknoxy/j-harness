@@ -2,9 +2,11 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -193,9 +195,42 @@ func (p *Pool) execute(ctx context.Context, job model.Job) (string, string) {
 			return "", err.Error()
 		}
 		return res.Output, ""
+
+	case model.KindPipeline:
+		res, err := p.eng.RunPipeline(ctx, job.TargetID, parseJobInput(job.Input))
+		for _, s := range res.Steps {
+			_ = p.store.AppendStepResult(ctx, model.StepResult{
+				SessionID:  job.SessionID,
+				StepID:     s.StepID,
+				Status:     s.Status,
+				Output:     s.Output,
+				Error:      s.Error,
+				Tokens:     s.Tokens,
+				DurationMS: s.DurationMS,
+			})
+		}
+		if err != nil {
+			return "", err.Error()
+		}
+		return res.Output, ""
+
 	default:
 		return "", fmt.Sprintf("engine: unsupported job kind %q", job.Kind)
 	}
+}
+
+// parseJobInput decodes the stored input payload. Agent jobs store the raw
+// input string; pipeline jobs store a JSON object of named inputs. Both are
+// accepted, so a plain string is exposed as the conventional "input" key.
+func parseJobInput(raw string) map[string]string {
+	trimmed := strings.TrimSpace(raw)
+	if strings.HasPrefix(trimmed, "{") {
+		var m map[string]string
+		if err := json.Unmarshal([]byte(trimmed), &m); err == nil {
+			return m
+		}
+	}
+	return map[string]string{"input": raw}
 }
 
 func stepStatus(err error) string {

@@ -71,8 +71,8 @@ A DAG of steps. Steps have a **named output** that later steps reference.
 
 > Note: `steps.<id>` is the **step id**, not the output name. Two steps may share an
 > output name (e.g. several branch replies), so a pipeline output that must capture "whichever
-> branch ran" should reference a merge/join step introduced with the router primitive
-> (Phase 6).
+> branch ran" should **omit the top-level `output`**. With no `output` template, the result is
+> the last agent step that executed. Steps not reached by a router are recorded as `SKIPPED`.
 
 ### Template grammar
 

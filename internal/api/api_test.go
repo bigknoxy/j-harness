@@ -353,3 +353,77 @@ func TestRecovererHandlesPanic(t *testing.T) {
 		t.Fatalf("status = %d, want 500", rec.Code)
 	}
 }
+
+func TestExecutePipelineAsyncSuccess(t *testing.T) {
+	a, fake := testAPI(t, "",
+		llm.Response{Content: `{"category":"billing","priority":"high"}`, TotalTokens: 4},
+		llm.Response{Content: "billing reply", TotalTokens: 6},
+	)
+
+	rec := do(t, a, http.MethodPost, "/v1/pipelines/support_flow/execute", "",
+		`{"user_input":"I was overcharged"}`)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202 (body %s)", rec.Code, rec.Body)
+	}
+	var sub submitResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &sub); err != nil {
+		t.Fatalf("decode submit: %v", err)
+	}
+	if sub.SessionID == "" {
+		t.Fatal("expected session_id")
+	}
+
+	got := waitSession(t, a, sub.SessionID)
+	if got.Status != string(model.StatusCompleted) {
+		t.Fatalf("status = %q error = %q", got.Status, got.Error)
+	}
+	if got.Kind != string(model.KindPipeline) {
+		t.Errorf("kind = %q, want pipeline", got.Kind)
+	}
+	if got.Result != "billing reply" {
+		t.Errorf("result = %q", got.Result)
+	}
+	if fake.CallCount() != 2 {
+		t.Errorf("client calls = %d, want 2", fake.CallCount())
+	}
+
+	stepsRec := do(t, a, http.MethodGet, "/v1/sessions/"+sub.SessionID+"/steps", "", "")
+	if stepsRec.Code != http.StatusOK {
+		t.Fatalf("steps status = %d", stepsRec.Code)
+	}
+	var env stepsEnvelope
+	if err := json.Unmarshal(stepsRec.Body.Bytes(), &env); err != nil {
+		t.Fatalf("decode steps: %v", err)
+	}
+	if len(env.Steps) != 5 {
+		t.Errorf("steps = %d, want 5", len(env.Steps))
+	}
+}
+
+func TestExecutePipelineMissingInput(t *testing.T) {
+	a, _ := testAPI(t, "")
+	rec := do(t, a, http.MethodPost, "/v1/pipelines/support_flow/execute", "",
+		`{"other":"x"}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 (body %s)", rec.Code, rec.Body)
+	}
+}
+
+func TestExecutePipelineUnknown(t *testing.T) {
+	a, _ := testAPI(t, "")
+	rec := do(t, a, http.MethodPost, "/v1/pipelines/nope/execute", "", `{"user_input":"x"}`)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+}
+
+func TestExecutePipelineMethodNotAllowed(t *testing.T) {
+	a, _ := testAPI(t, "")
+	rec := do(t, a, http.MethodGet, "/v1/pipelines/support_flow/execute", "", "")
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", rec.Code)
+	}
+	if rec.Header().Get("Allow") != http.MethodPost {
+		t.Errorf("Allow = %q", rec.Header().Get("Allow"))
+	}
+}
