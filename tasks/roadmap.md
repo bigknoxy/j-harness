@@ -1,6 +1,8 @@
 # Roadmap
 
-Live phase tracker. Update the Status column as phases complete. v1 ships at end of Phase 5.
+Live phase tracker. Update the Status column as phases complete. v1 shipped at end of Phase 5.
+
+## Engine phases
 
 | Phase | Deliverable | Status |
 |---|---|---|
@@ -8,13 +10,26 @@ Live phase tracker. Update the Status column as phases complete. v1 ships at end
 | 1 | `registry`: load/validate/atomic-write blueprints + prompts | ✅ done |
 | 2 | `llm.Client` + fake; single-agent execution | ✅ done |
 | 3 | HTTP API (sync) + middleware (auth/logging/recovery) | ✅ done |
-| 4 | `store` (SQLite) + async jobs + bounded worker pool + orphan requeue | 🚧 in progress |
-| 5 | Sequential pipeline (named IO) + template resolver — **v1** | ⬜ todo |
-| 6 | Fan-out/fan-in + `router` primitive | ⬜ todo |
+| 4 | `store` (SQLite) + async jobs + bounded worker pool + orphan requeue | ✅ done |
+| 5 | Sequential pipeline + `router` primitive (named IO) — **v1** | ✅ done |
+| 6 | Parallel DAG fan-out/fan-in (join step) | 🚧 in progress |
 | 7 | Registry CRUD API (create/update/list agents & pipelines) | ⬜ todo |
 | 8 | Tools / function calling (gated) | ⬜ todo |
 | 9 | Hardening: retries/backoff, JSON-schema validation, metrics | ⬜ todo |
-| 10 | Docker + compose (harness + ollama), GitOps deploy docs, Pages | ⬜ todo |
+| 10 | Docker + compose (harness + ollama), GitOps deploy docs | ⬜ todo |
 | 11 | Optional Redis `Store` adapter | ⬜ todo |
+
+## Delivery track (professional polish)
+
+| Item | Deliverable | Status |
+|---|---|---|
+| D1 | Branch protection on `main` (PR-only, admin bypass allowed) | ⬜ todo |
+| D2 | CI best practices: lint, test matrix, vuln scan, release job | ⬜ todo |
+| D3 | Automated versioned releases (GoReleaser) + GitHub Releases | ⬜ todo |
+| D4 | One-line `curl` installer + uninstaller | ⬜ todo |
+| D5 | Custom GH Pages site (`index.html`), fun + tech-forward, no AI tells | ⬜ todo |
+| D6 | Repo homepage URL -> Pages; topics + description | ⬜ todo |
+| D7 | README badges (build, release, Go version, license) | ⬜ todo |
+| D8 | Dogfood: run real agents/pipelines via Ollama + NVIDIA NIM | ⬜ todo |
 
 Legend: ⬜ todo · 🚧 in progress · ✅ done · ⛔ blocked

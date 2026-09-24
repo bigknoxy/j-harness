@@ -105,13 +105,39 @@ func TestPoolFailedJob(t *testing.T) {
 
 func TestPoolUnsupportedKind(t *testing.T) {
 	pool, st, _ := testPool(t, 1)
-	job := model.Job{SessionID: "j3", Kind: model.KindPipeline, TargetID: "support_flow"}
+	job := model.Job{SessionID: "j3", Kind: model.JobKind("bogus"), TargetID: "support_flow"}
 	if err := pool.Submit(context.Background(), job); err != nil {
 		t.Fatalf("Submit: %v", err)
 	}
 	got := waitForStatus(t, st, "j3", model.StatusFailed)
 	if got.Error == "" {
 		t.Error("expected error for unsupported kind")
+	}
+}
+
+func TestPoolRunsPipelineJob(t *testing.T) {
+	pool, st, _ := testPool(t, 1,
+		llm.Response{Content: `{"category":"technical","priority":"normal"}`},
+		llm.Response{Content: "tech reply"},
+	)
+	ctx := context.Background()
+	job := model.Job{
+		SessionID: "p1", Kind: model.KindPipeline, TargetID: "support_flow",
+		Input: `{"user_input":"my app crashes"}`,
+	}
+	if err := pool.Submit(ctx, job); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	got := waitForStatus(t, st, "p1", model.StatusCompleted)
+	if got.Result != "tech reply" {
+		t.Errorf("result = %q", got.Result)
+	}
+	steps, err := st.ListStepResults(ctx, "p1")
+	if err != nil {
+		t.Fatalf("ListStepResults: %v", err)
+	}
+	if len(steps) != 5 {
+		t.Errorf("step results = %d, want 5 (triage, route, 2 skips, tech_reply)", len(steps))
 	}
 }
 

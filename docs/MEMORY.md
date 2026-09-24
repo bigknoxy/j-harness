@@ -7,6 +7,16 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Phase 5 (v1) — pipelines run sequentially; omitting `output` means "last step".**
+  `Engine.RunPipeline` walks steps in declared order. Router steps select one successor and
+  mark the other branch targets `SKIPPED` (recorded as step rows). Because a skipped branch's
+  output never exists, `support_flow` **omits the top-level `output`**: with no `output`
+  template the result is the last agent step that executed, which is exactly "whichever branch
+  ran". Per-step outcomes are persisted as `StepResult` rows by the worker, so
+  `GET /v1/sessions/{id}/steps` shows the full path including skips. Template runtime
+  resolution lives in `internal/pipeline/resolve.go`; the grammar/validation from Phase 1 is
+  reused so load-time and run-time agree.
+
 - **2026-09-24: Pure-Go SQLite driver + Go 1.27 (current stable).** Phase 4 adds
   `modernc.org/sqlite` (v1.59.0), a CGO-free SQLite so the existing `CGO_ENABLED=0`
   static build and Alpine image keep working. This is the first third-party runtime

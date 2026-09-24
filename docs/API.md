@@ -12,60 +12,106 @@ Authorization: Bearer <token>
 
 `/healthz` and `/readyz` are always unauthenticated.
 
-## Execute
+## Async model
 
-> **Phase 3 note:** execution is currently **synchronous** — the request blocks until the
-> model responds and returns the result directly. The async submit/poll shape (`202` +
-> `GET /v1/sessions/{id}`) lands in Phase 4. The request/response fields below are forward
-> compatible: the same `input_data` payload is used, and the eventual async `result` holds
-> the same `output` string.
+Execution is asynchronous. Submit a job and poll for its result.
 
-### `POST /v1/agents/{id}/execute`
+1. `POST` to an `/execute` endpoint returns **`202 Accepted`** with a `session_id`.
+2. `GET /v1/sessions/{id}` returns the job's `status` and, once terminal, its `result`.
+3. `GET /v1/sessions/{id}/steps` returns per-step results (pipeline runs).
+
+Job status is one of `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELED`.
+
+## Submit an agent
 
 ```bash
-curl -X POST http://127.0.0.1:8080/v1/agents/generic_agent/execute \
+curl -s -X POST http://127.0.0.1:8080/v1/agents/generic_agent/execute \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $HARNESS_AUTH_TOKEN" \
   -d '{"input_data": "Summarize this in one line."}'
 ```
 
+**202 Accepted**
+
+```json
+{ "session_id": "sess_1f9c...", "status": "PENDING" }
+```
+
+## Submit a pipeline
+
+The body is a JSON object mapping each declared pipeline input to a string.
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/v1/pipelines/support_flow/execute \
+  -H "Content-Type: application/json" \
+  -d '{"user_input": "I was charged twice this month."}'
+```
+
+**202 Accepted**
+
+```json
+{ "session_id": "sess_44a0...", "status": "PENDING" }
+```
+
+## Poll a session
+
+### `GET /v1/sessions/{id}`
+
 **200 OK**
 
 ```json
 {
-  "agent_id": "generic_agent",
-  "output": "...",
-  "tokens": 42,
-  "duration_ms": 812
+  "session_id": "sess_44a0...",
+  "kind": "pipeline",
+  "target_id": "support_flow",
+  "status": "COMPLETED",
+  "result": "..."
 }
 ```
 
-Errors use a JSON envelope: `{"error":{"code":"...","message":"..."}}`.
+On failure, `status` is `FAILED` and `error` carries the message.
+
+### `GET /v1/sessions/{id}/steps`
+
+**200 OK**
+
+```json
+{
+  "session_id": "sess_44a0...",
+  "steps": [
+    { "step_id": "triage", "status": "COMPLETED", "output": "{...}", "tokens": 42, "duration_ms": 512 },
+    { "step_id": "route", "status": "COMPLETED" },
+    { "step_id": "billing_reply", "status": "COMPLETED", "output": "...", "tokens": 30, "duration_ms": 400 },
+    { "step_id": "tech_reply", "status": "SKIPPED" },
+    { "step_id": "generic_reply", "status": "SKIPPED" }
+  ]
+}
+```
 
 ## Health
 
 | Endpoint | Purpose |
 |---|---|
 | `GET /healthz` | process is alive |
-| `GET /readyz` | dependencies (store) are ready |
+| `GET /readyz` | dependencies (registry, store) are ready |
 
 ## Status codes
 
 | Code | Meaning |
 |---|---|
 | `200` | OK |
+| `202` | job accepted (async submit) |
 | `400` | malformed request / invalid payload |
 | `401` | missing or invalid bearer token |
 | `404` | unknown agent, pipeline, session, or route |
 | `405` | wrong method |
 | `500` | internal error |
-| `503` | not ready (planned for Phase 4 async readiness) |
+| `503` | queue full or dependency not ready |
+
+Errors use a JSON envelope: `{"error":{"code":"...","message":"..."}}`.
 
 ## Planned (later phases)
 
-- `POST /v1/pipelines/{id}/execute` — run a pipeline
-- async submit (`202 Accepted` + `session_id`) and `GET /v1/sessions/{id}` polling
-- `GET /v1/sessions/{id}/steps` — per-step results
 - `POST /v1/sessions/{id}/cancel`
 - `GET|POST|PUT|DELETE /v1/registry/{agents,pipelines}` — manage agents/pipelines over HTTP
 - `GET /metrics` — Prometheus metrics

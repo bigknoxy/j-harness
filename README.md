@@ -4,15 +4,15 @@ A lightweight, configuration-driven LLM agent harness in Go.
 
 Agents are defined by **Markdown prompts** (`.md`) and **JSON blueprints/pipelines**. The
 harness loads them, runs them against any **OpenAI-compatible endpoint** (OpenAI, Ollama,
-vLLM, llama.cpp server), and exposes an HTTP API — synchronous today, with an async job
-queue (submit + status polling) landing in Phase 4.
+vLLM, llama.cpp server), and exposes an async HTTP API: submit a job, poll for the result.
 
 Single binary. Embedded SQLite. No external services required.
 
-> **Status: Phase 3 (sync HTTP API).** Registry, OpenAI-compatible LLM client, and
-> single-agent execution work end to end over `POST /v1/agents/{id}/execute`. Async jobs
-> arrive in Phase 4. See [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
-> [`tasks/todo.md`](tasks/todo.md) for the current work item.
+> **Status: v1 (Phase 5).** Single agents and sequential pipelines run end to end over an
+> async API (`POST .../execute` → `202 {session_id}`, then `GET /v1/sessions/{id}`). Branching
+> routers, registry CRUD, and tools arrive in later phases. See
+> [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and [`tasks/todo.md`](tasks/todo.md)
+> for the current work item.
 
 ## Why
 
@@ -58,10 +58,23 @@ output that later steps can reference. See [`docs/SCHEMA.md`](docs/SCHEMA.md).
 |---|---|---|
 | `GET`  | `/healthz` | liveness |
 | `GET`  | `/readyz` | readiness |
-| `POST` | `/v1/agents/{id}/execute` | run one agent (sync) |
+| `POST` | `/v1/agents/{id}/execute` | submit one agent run → `202 {session_id}` |
+| `POST` | `/v1/pipelines/{id}/execute` | submit a pipeline run → `202 {session_id}` |
+| `GET`  | `/v1/sessions/{id}` | poll job status + result |
+| `GET`  | `/v1/sessions/{id}/steps` | per-step results |
 
-Planned: async job execution (`202` + session polling), pipelines, and registry CRUD — see
-the roadmap. Full reference: [`docs/API.md`](docs/API.md).
+```bash
+# submit
+SESSION=$(curl -s -X POST localhost:8080/v1/agents/generic_agent/execute \
+  -H 'Content-Type: application/json' \
+  -d '{"input_data":"Say hello in five words."}' | jq -r .session_id)
+
+# poll until COMPLETED
+curl -s localhost:8080/v1/sessions/$SESSION
+```
+
+Registry CRUD and tools arrive in later phases. Full reference:
+[`docs/API.md`](docs/API.md).
 
 ## Security
 
