@@ -9,9 +9,6 @@ on:
 permissions:
   contents: read
 
-env:
-  GOTOOLCHAIN: local
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -27,14 +24,13 @@ jobs:
           if [ -n "$files" ]; then echo "unformatted:"; echo "$files"; exit 1; fi
       - name: go vet
         run: go vet ./...
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m
+      - name: staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
