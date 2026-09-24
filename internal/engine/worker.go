@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bigknoxy/j-harness/internal/metrics"
 	"github.com/bigknoxy/j-harness/internal/model"
 	"github.com/bigknoxy/j-harness/internal/store"
 )
@@ -24,6 +25,7 @@ type Pool struct {
 	store   store.Store
 	eng     *Engine
 	logger  *log.Logger
+	metrics *metrics.Metrics
 	queue   chan string
 	workers int
 	wg      sync.WaitGroup
@@ -38,6 +40,7 @@ type PoolConfig struct {
 	Workers int
 	Queue   int
 	Logger  *log.Logger
+	Metrics *metrics.Metrics
 }
 
 // NewPool builds and starts a worker pool.
@@ -62,6 +65,7 @@ func NewPool(cfg PoolConfig) (*Pool, error) {
 		store:   cfg.Store,
 		eng:     cfg.Engine,
 		logger:  logger,
+		metrics: cfg.Metrics,
 		queue:   make(chan string, cfg.Queue),
 		workers: cfg.Workers,
 		quit:    make(chan struct{}),
@@ -83,6 +87,7 @@ func (p *Pool) Submit(ctx context.Context, job model.Job) error {
 	if err := p.store.CreateJob(ctx, job); err != nil {
 		return err
 	}
+	p.metrics.Inc(metrics.JobsSubmitted)
 	select {
 	case p.queue <- job.SessionID:
 		return nil
@@ -165,12 +170,14 @@ func (p *Pool) run(sessionID string) {
 	dur := time.Since(start)
 
 	if errMsg != "" {
+		p.metrics.Inc(metrics.JobsFailed)
 		if serr := p.store.SetJobStatus(ctx, sessionID, model.StatusFailed, result, errMsg); serr != nil {
 			p.logger.Printf("engine: worker mark failed %s: %v", sessionID, serr)
 		}
 		p.logger.Printf("engine: job %s (%s %s) failed in %s: %s", sessionID, job.Kind, job.TargetID, dur, errMsg)
 		return
 	}
+	p.metrics.Inc(metrics.JobsCompleted)
 	if serr := p.store.SetJobStatus(ctx, sessionID, model.StatusCompleted, result, ""); serr != nil {
 		p.logger.Printf("engine: worker mark completed %s: %v", sessionID, serr)
 	}

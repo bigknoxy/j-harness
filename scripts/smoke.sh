@@ -24,6 +24,10 @@ done
 echo "/healthz -> $(curl -s "http://$ADDR/healthz")"
 echo "/readyz  -> $(curl -s "http://$ADDR/readyz")"
 
+# /metrics should render Prometheus text.
+curl -sf "http://$ADDR/metrics" | grep -q "harness_jobs_submitted_total" \
+  || { echo "expected /metrics to expose harness_jobs_submitted_total"; exit 1; }
+
 # Unknown session should be a clean 404 (exercises the store path).
 code=$(curl -s -o /dev/null -w '%{http_code}' "http://$ADDR/v1/sessions/does-not-exist")
 [ "$code" = "404" ] || { echo "expected 404 for unknown session, got $code"; exit 1; }

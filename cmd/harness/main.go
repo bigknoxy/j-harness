@@ -21,6 +21,7 @@ import (
 	"github.com/bigknoxy/j-harness/internal/api"
 	"github.com/bigknoxy/j-harness/internal/engine"
 	"github.com/bigknoxy/j-harness/internal/llm"
+	"github.com/bigknoxy/j-harness/internal/metrics"
 	"github.com/bigknoxy/j-harness/internal/registry"
 	"github.com/bigknoxy/j-harness/internal/store"
 	"github.com/bigknoxy/j-harness/internal/tools"
@@ -34,6 +35,7 @@ func main() {
 	registryPath := flag.String("registry", envOr("HARNESS_REGISTRY", "./agent-registry"), "agent registry root directory")
 	dbPath := flag.String("db", envOr("HARNESS_DB", "./data/harness.db"), "SQLite database path")
 	workers := flag.Int("workers", envInt("HARNESS_WORKERS", runtime.NumCPU()), "number of worker goroutines")
+	retries := flag.Int("retries", envInt("HARNESS_RETRIES", 3), "max LLM attempts per call (1 disables retries)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -56,7 +58,7 @@ func main() {
 	defer func() { _ = st.Close() }()
 	log.Printf("store %s: ready", *dbPath)
 
-	client, err := llm.NewOpenAI(llm.OpenAIConfig{
+	baseClient, err := llm.NewOpenAI(llm.OpenAIConfig{
 		BaseURL: envOr("OPENAI_BASE_URL", "http://127.0.0.1:11434/v1"),
 		Model:   envOr("OPENAI_MODEL", ""),
 		APIKey:  os.Getenv("OPENAI_API_KEY"), // env-only; never logged
@@ -64,10 +66,22 @@ func main() {
 	if err != nil {
 		log.Fatalf("init llm client: %v", err)
 	}
+
+	met := metrics.New()
+
+	// Retries wrap the client, not the engine: only transport failures and
+	// HTTP 429/5xx are retried, 4xx fails fast (see docs/MEMORY.md).
+	var client llm.Client = llm.NewRetry(baseClient, llm.Retry{
+		MaxAttempts: *retries,
+		OnRetry:     func() { met.Inc(metrics.LLMRetries) },
+	})
+	log.Printf("llm retries: max %d attempt(s)", *retries)
+
 	eng, err := engine.New(reg, client)
 	if err != nil {
 		log.Fatalf("init engine: %v", err)
 	}
+	eng.SetMetrics(met)
 	if os.Getenv("ENABLE_TOOLS") == "true" {
 		toolReg, terr := tools.New("current_time", "word_count", "math_eval")
 		if terr != nil {
@@ -81,6 +95,7 @@ func main() {
 		Store:   st,
 		Engine:  eng,
 		Workers: *workers,
+		Metrics: met,
 	})
 	if err != nil {
 		log.Fatalf("init worker pool: %v", err)
@@ -97,6 +112,7 @@ func main() {
 		Store:     st,
 		Version:   version,
 		AuthToken: os.Getenv("HARNESS_AUTH_TOKEN"), // env-only; never logged
+		Metrics:   met,
 	})
 	if err != nil {
 		log.Fatalf("init api: %v", err)

@@ -14,12 +14,13 @@ vLLM, llama.cpp server), and exposes an async HTTP API: submit a job, poll for t
 
 Single binary. Embedded SQLite. No external services required.
 
-> **Status: Phase 8.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
+> **Status: Phase 9.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
 > async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`), the
 > registry can be created and updated over HTTP, and agents can call a small set of built-in
 > tools when `ENABLE_TOOLS=true`.
-> Branching routers, parallel DAGs, registry CRUD, and gated tools are supported today;
-> hardening (retries, output-schema validation, metrics) arrives in later phases. See
+> LLM calls retry transient failures with backoff, `json` outputs are validated against their
+> referenced JSON Schema (with one repair turn), and Prometheus metrics are exposed on
+> `GET /metrics`. Docker packaging and GitOps deploy docs arrive in the last phase. See
 > [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
 > [`tasks/todo.md`](tasks/todo.md) for the current work item.
 
@@ -139,7 +140,7 @@ This service runs LLM-driven tool calls, so treat it as code you did not write.
 | 6 | DAG fan-out/fan-in + router | done |
 | 7 | registry CRUD API | done |
 | 8 | tools / function calling (gated) | done |
-| 9 | hardening: retries, schema validation, metrics | todo |
+| 9 | hardening: retries, schema validation, metrics | done |
 | 10 | Docker + GitOps deploy docs | todo |
 | 11 | optional Redis store adapter | todo |
 

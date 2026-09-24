@@ -4,13 +4,13 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **Phase 9 — Hardening (retries / backoff, output-schema validation, metrics)**
+- [ ] **Phase 10 — Docker + compose + GitOps deploy docs**
 
 ## Next action
 
-- Decide the retry policy (which errors are retryable, max attempts, backoff, where it lives:
-  llm client vs engine) and how `output_schema` is enforced (validate the parsed JSON against
-  the referenced schema, bounded retry on mismatch). Record both in `docs/MEMORY.md` first.
+- Confirm the checked-in `Dockerfile` + `docker-compose.yml` cover harness + ollama and that
+  the image is `CGO_ENABLED=0`. Then document a GitOps deploy (registry in git, image tag
+  pinned, `ENABLE_TOOLS`/`HARNESS_RETRIES` as config) and verify `docker build` locally.
 
 ## Blockers
 
@@ -18,11 +18,25 @@ None.
 
 ## Backlog (engine phases, in order)
 
-- [ ] **Phase 9**: hardening (retries, JSON-schema validation, metrics)
 - [ ] **Phase 10**: Docker + compose + GitOps deploy docs
 - [ ] **Phase 11**: optional Redis `Store` adapter
 
 ## Done
+
+- [x] **Phase 9 — Hardening (retries / backoff, output-schema validation, metrics)**
+  (verified: `make fmt-check vet test build` passed; smoke green incl. a `GET /metrics`
+  assertion; `internal/schema/schema_test.go`, `internal/llm/retry_test.go`,
+  `internal/metrics/metrics_test.go`, and extended `internal/engine/engine_test.go`
+  repair tests all pass)
+  - `internal/schema`: small draft-07 subset validator; registry compiles the referenced
+    `output_schema` at load (malformed schema fails startup; requires `output_format: "json"`)
+  - `internal/engine`: JSON output validated against the schema with exactly ONE repair turn,
+    then fails; increments `harness_schema_failures_total`
+  - `internal/llm`: typed `HTTPError` + `NewRetry` decorator; retries transport errors and
+    HTTP 429/5xx with exponential backoff + jitter, 4xx fails fast (`HARNESS_RETRIES`, default 3)
+  - `internal/metrics`: in-process Prometheus-text counters on unauthenticated `GET /metrics`
+  - docs: README/docs/API (health + counters + Environment tables)/docs/ARCHITECTURE
+    (`## Hardening`)/docs/SCHEMA; tasks/lessons.md nil-receiver lesson
 
 - [x] **Phase 8 — Tools / function calling (gated)** (verified: `go build ./...` clean;
   `gofmt -l internal cmd` empty; `go test -race ./...` all packages ok;

@@ -46,6 +46,17 @@ Append a new entry after any correction or postmortem. Newest first.
   progress observable (a `started` channel closed inside `Complete`) and block the test until
   the worker is provably busy before asserting queue-full behavior.
 
+### 2026-09-24 — nil-receiver methods must guard before dereferencing
+
+- **Failure mode:** `(*Metrics).Render` dereferenced the receiver (`for name, c := range m.counters`)
+  without a nil check. `Inc`/`Add`/`Get` were safe because they routed through a nil-aware
+  `counter(name)` helper, but `Render` did not. `TestNilMetricsSafe` segfaulted.
+- **Detection signal:** `go test -race ./...` panicked with a SIGSEGV inside `metrics.go` on a
+  package whose tests otherwise passed.
+- **Prevention rule:** If a type is designed to be nil-safe (optional dependency), every method
+  must guard `if m == nil` before touching fields, and a nil-receiver test must exercise all
+  exported methods, not just one.
+
 ### 2026-09-24 — Registry schemas must live inside the registry bundle
 - **Failure mode:** Blueprints reference `output_schema` by a path relative to the registry
   root (`schemas/triage.json`), but `schemas/` lived at the repo top level. A registry

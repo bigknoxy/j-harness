@@ -143,6 +143,17 @@ curl -s -X POST http://127.0.0.1:8080/v1/registry/agents/scribe \
 |---|---|
 | `GET /healthz` | process is alive |
 | `GET /readyz` | dependencies (registry, store) are ready |
+| `GET /metrics` | Prometheus text metrics (unauthenticated) |
+
+Counters emitted on `/metrics`:
+
+| Metric | Meaning |
+|---|---|
+| `harness_jobs_submitted_total` | jobs accepted into the queue |
+| `harness_jobs_completed_total` | jobs that finished successfully |
+| `harness_jobs_failed_total` | jobs that ended in `FAILED` |
+| `harness_llm_retries_total` | retried LLM calls (transport / 429 / 5xx) |
+| `harness_schema_failures_total` | outputs that failed schema validation after the repair turn |
 
 ## Status codes
 
@@ -163,4 +174,18 @@ Errors use a JSON envelope: `{"error":{"code":"...","message":"..."}}`.
 ## Planned (later phases)
 
 - `POST /v1/sessions/{id}/cancel`
-- `GET /metrics` — Prometheus metrics
+
+## Environment
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `HARNESS_ADDR` | `127.0.0.1:8080` | listen address |
+| `HARNESS_REGISTRY` | `./agent-registry` | registry root |
+| `HARNESS_DB` | `./data/harness.db` | SQLite job database |
+| `HARNESS_WORKERS` | number of CPUs | worker pool size |
+| `HARNESS_RETRIES` | `3` | max LLM attempts per call (`1` disables retries) |
+| `HARNESS_AUTH_TOKEN` | empty | bearer token; required for `/v1/*` when set |
+| `ENABLE_TOOLS` | `false` | enable built-in tool calling |
+| `OPENAI_BASE_URL` | `http://127.0.0.1:11434/v1` | LLM endpoint |
+| `OPENAI_MODEL` | empty | default model (blueprints override) |
+| `OPENAI_API_KEY` | empty | bearer token sent to the LLM endpoint |

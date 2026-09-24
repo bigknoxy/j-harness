@@ -45,13 +45,49 @@ func TestRunAgentText(t *testing.T) {
 }
 
 func TestRunAgentJSONValid(t *testing.T) {
-	eng, _ := testEngine(t, llm.Response{Content: "```json\n{\"category\":\"billing\"}\n```"})
+	eng, _ := testEngine(t, llm.Response{Content: "```json\n{\"category\":\"billing\",\"priority\":\"high\"}\n```"})
 	res, err := eng.RunAgent(context.Background(), "triage", "my bill is wrong")
 	if err != nil {
 		t.Fatalf("RunAgent: %v", err)
 	}
 	if !strings.Contains(res.Output, "billing") {
 		t.Errorf("output = %q", res.Output)
+	}
+}
+
+func TestRunAgentSchemaRepair(t *testing.T) {
+	eng, fake := testEngine(t,
+		llm.Response{Content: `{"category":"billing"}`, TotalTokens: 10},
+		llm.Response{Content: `{"category":"billing","priority":"high"}`, TotalTokens: 5},
+	)
+	res, err := eng.RunAgent(context.Background(), "triage", "my bill is wrong")
+	if err != nil {
+		t.Fatalf("RunAgent: %v", err)
+	}
+	if !strings.Contains(res.Output, "priority") {
+		t.Errorf("repaired output = %q", res.Output)
+	}
+	if res.Tokens != 15 {
+		t.Errorf("tokens = %d, want 15", res.Tokens)
+	}
+	if fake.CallCount() != 2 {
+		t.Errorf("calls = %d, want 2", fake.CallCount())
+	}
+	if len(fake.Requests[1].Messages) == 0 {
+		t.Error("repair request should carry the conversation")
+	}
+}
+
+func TestRunAgentSchemaRepairFails(t *testing.T) {
+	eng, fake := testEngine(t,
+		llm.Response{Content: `{"category":"billing"}`},
+		llm.Response{Content: `{"category":"billing"}`},
+	)
+	if _, err := eng.RunAgent(context.Background(), "triage", "x"); err == nil {
+		t.Fatal("expected schema error after failed repair")
+	}
+	if fake.CallCount() != 2 {
+		t.Errorf("calls = %d, want 2 (one repair attempt)", fake.CallCount())
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/bigknoxy/j-harness/internal/engine"
+	"github.com/bigknoxy/j-harness/internal/metrics"
 	"github.com/bigknoxy/j-harness/internal/model"
 	"github.com/bigknoxy/j-harness/internal/registry"
 	"github.com/bigknoxy/j-harness/internal/store"
@@ -39,6 +40,8 @@ type Config struct {
 	AuthToken string
 	// Logger receives request/error logs. Defaults to the std logger.
 	Logger *log.Logger
+	// Metrics, when set, is rendered on GET /metrics. Optional.
+	Metrics *metrics.Metrics
 }
 
 // API is the HTTP handler for the harness.
@@ -50,6 +53,7 @@ type API struct {
 	version  string
 	auth     string
 	logger   *log.Logger
+	metrics  *metrics.Metrics
 
 	// mu guards swap of the registry snapshot on registry writes.
 	mu sync.Mutex
@@ -81,6 +85,7 @@ func New(cfg Config) (*API, error) {
 		version:  cfg.Version,
 		auth:     cfg.AuthToken,
 		logger:   logger,
+		metrics:  cfg.Metrics,
 	}, nil
 }
 
@@ -91,6 +96,8 @@ func (a *API) Handler() http.Handler {
 	// Health/readiness are always unauthenticated so probes keep working.
 	mux.HandleFunc("/healthz", a.handleHealthz)
 	mux.HandleFunc("/readyz", a.handleReadyz)
+	// Metrics are unauthenticated like health, for scrapers on the loopback.
+	mux.HandleFunc("/metrics", a.handleMetrics)
 
 	mux.HandleFunc("/v1/agents/", a.handleAgents)
 	mux.HandleFunc("/v1/pipelines/", a.handlePipelines)
@@ -171,6 +178,14 @@ func (a *API) recoverer(next http.Handler) http.Handler {
 
 func (a *API) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": a.version})
+}
+
+// handleMetrics renders Prometheus text counters. Unauthenticated, same as the
+// health endpoints, so a local scraper needs no token.
+func (a *API) handleMetrics(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, a.metrics.Render())
 }
 
 func (a *API) handleReadyz(w http.ResponseWriter, r *http.Request) {

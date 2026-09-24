@@ -34,7 +34,7 @@ Defines one agent: which prompt to load, which model/params, and (optionally) to
 | `max_tokens` | int | optional |
 | `timeout_seconds` | int | per-call timeout (default from config) |
 | `output_format` | string | `text` (default) or `json` |
-| `output_schema` | string | optional JSON Schema for `json` output |
+| `output_schema` | string | optional JSON Schema (draft-07 subset) for `json` output; requires `output_format: "json"`. Compiled at load and enforced at runtime with one repair turn on mismatch |
 | `tools` | []string | built-in tool names; only honored when `ENABLE_TOOLS=true`. Built-ins: `current_time`, `word_count`, `math_eval`. Unknown names are rejected on load |
 | `version` | int | schema version (currently `1`) |
 
