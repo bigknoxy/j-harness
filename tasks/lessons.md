@@ -14,6 +14,18 @@ Append a new entry after any correction or postmortem. Newest first.
 
 _No entries yet._
 
+### 2026-09-24 — Three concurrency-loop bugs in the DAG scheduler
+- **Failure mode:** The first `RunPipeline` DAG scheduler (a) exited as soon as no steps were
+  pending, while goroutines were still in flight, losing a branch's output; (b) re-admitted
+  branch-loser steps that had been marked `SKIPPED`, so they ran anyway; and (c) kept admitting
+  new steps after a failure because only `running` was checked.
+- **Detection signal:** `TestRunPipelineDAGFanOutFanIn` returned a truncated output; branch
+  tests showed skipped steps executing; failure tests ran extra steps.
+- **Prevention rule:** A concurrency scheduler must drain in-flight work before exiting
+  (`pending == 0 && running == 0`), must remove terminal steps from the pending set (not just
+  mark state), and must gate new admissions on the first failure. Prefer a single owner of the
+  pending/state maps with worker results delivered on a channel.
+
 ### 2026-09-24 — Flaky `TestSubmitQueueFull` (worker dequeue race)
 - **Failure mode:** The test submitted three jobs to a pool with `Workers:1, Queue:1` and
   expected the third to hit `ErrQueueFull`. On faster runners (macOS CI) the worker had

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
@@ -17,11 +18,13 @@ import (
 
 // Engine runs agents and pipelines against an LLM backend.
 type Engine struct {
-	registry *registry.Registry
-	client   llm.Client
+	registry    *registry.Registry
+	client      llm.Client
+	maxParallel int
 }
 
-// New builds an Engine. Both arguments are required.
+// New builds an Engine. Both arguments are required. Pipeline steps run
+// concurrently up to maxParallel (defaults to GOMAXPROCS, minimum 1).
 func New(reg *registry.Registry, client llm.Client) (*Engine, error) {
 	if reg == nil {
 		return nil, fmt.Errorf("engine: registry is required")
@@ -29,7 +32,7 @@ func New(reg *registry.Registry, client llm.Client) (*Engine, error) {
 	if client == nil {
 		return nil, fmt.Errorf("engine: llm client is required")
 	}
-	return &Engine{registry: reg, client: client}, nil
+	return &Engine{registry: reg, client: client, maxParallel: runtime.GOMAXPROCS(0)}, nil
 }
 
 // AgentResult is the outcome of running a single agent.

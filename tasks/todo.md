@@ -4,35 +4,26 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **Phase 6 — Parallel DAG (fan-out/fan-in)**
-  - [ ] dependency-aware scheduler: a step's predecessors must all finish first
-  - [ ] run independent branches concurrently (bounded by the worker pool)
-  - [ ] join step: declared predecessors gate execution; merge their outputs
-  - [ ] validation: reject cycles at load time
-  - [ ] tests + docs
+- [ ] **Phase 7 — Registry CRUD API**
+  - [ ] `POST`/`PUT /v1/registry/agents/{id}` (blueprint + prompt body)
+  - [ ] `POST`/`PUT /v1/registry/pipelines/{id}`
+  - [ ] `GET /v1/registry/{agents,pipelines}` (list) + `GET .../{id}` (detail)
+  - [ ] validate before write; reject invalid with the registry error
+  - [ ] live reload after write (rebuild the in-memory registry snapshot)
+  - [ ] auth-gated; tests + docs
 
 ## Next action
 
-Add explicit step dependencies (`needs: [ids]`) to the schema, or derive them from
-template refs. Deriving from refs keeps blueprints terse; explicit `needs` is clearer for
-joins. Decide and record in `docs/MEMORY.md`.
+Reuse `registry.WriteBlueprint` / `WritePipeline` (they already validate + atomic-write),
+then hot-swap the engine's registry snapshot. Decide the reload strategy (whole-registry
+`Load` vs targeted upsert) and record it in `docs/MEMORY.md`.
 
 ## Blockers
 
 None.
 
-## Backlog (delivery track — after engine phases or interleaved)
+## Backlog (engine phases, in order)
 
-- [ ] **D5 Pages site**: custom `index.html` (fun, tech-forward, no AI tells)
-- [ ] **D6 repo polish**: homepage URL -> Pages, topics, description
-- [ ] **D7 README badges**: CI, latest release, Go version, license
-- [ ] **D1 branch protection**: `main` requires PR + status checks; admin bypass on
-- [ ] **D2 CI**: golangci-lint, test matrix, govulncheck, build/attest
-- [ ] **D3 releases**: GoReleaser on tag `v*`, publish to GitHub Releases
-- [ ] **D4 installer**: `install.sh` (one-liner) + `uninstall.sh`
-- [ ] **D8 dogfood**: real Ollama + NVIDIA NIM runs through the harness
-- [ ] **Phase 6**: fan-out/fan-in + router primitive
-- [ ] **Phase 7**: registry CRUD API
 - [ ] **Phase 8**: tools / function calling (gated)
 - [ ] **Phase 9**: hardening (retries, JSON-schema validation, metrics)
 - [ ] **Phase 10**: Docker + compose + GitOps deploy docs
@@ -40,6 +31,18 @@ None.
 
 ## Done
 
+- [x] **Phase 6 — Parallel DAG fan-out/fan-in** (verified: `make fmt-check vet test build`
+  passed; smoke green; `internal/pipeline/graph_test.go` covers refs/needs/router edges,
+  cycles, unknown refs. `internal/engine/dag_test.go` proves concurrent fan-out with a
+  barrier client and stops on failure. Registry tests cover forward-ref-allowed + cycle reject.)
+  - `internal/pipeline/graph.go`: `Deps` unions template refs + `needs` + router gotos, rejects
+    unknown edges and cycles at load time
+  - `internal/model`: `Step.Needs` + `StatusSkipped`
+  - `internal/engine/pipeline.go`: concurrent DAG scheduler bounded by `GOMAXPROCS`; failed or
+    skipped predecessors skip their dependents
+  - `internal/registry`: forward refs allowed; cycles/unknown needs rejected
+  - `agent-registry/pipelines/digest_flow.json`: fan-out (`summarize` + `assess_risk`) -> join
+    (`combine` via `needs`)
 - [x] **D8 — Dogfood: real runs via a hosted OpenAI-compatible provider**
   (verified: ran the checked-in registry through the async API against NVIDIA NIM
   `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`. `triage` classified billing -> high and a
@@ -73,10 +76,12 @@ None.
 
 ## Notes / working memory
 
-- Target v1 = end of Phase 5 (sequential pipeline). Router arrives Phase 6.
+- v1 = Phase 5 (sequential pipeline); Phase 6 adds DAG fan-out/fan-in.
 - State = embedded SQLite behind a `Store` interface (Redis is a later adapter, Phase 11).
-- Worker pool is **bounded** (2-core host; local inference serializes).
-- `{{ steps.<id>.output }}` keys off the **step id**; router `goto` may point forward.
+- Worker pool is **bounded** (2-core host; local inference serializes); DAG fan-out is
+  bounded by `GOMAXPROCS`.
+- Step dependencies come from `{{ steps.<id>.output }}` refs + explicit `needs` + router
+  gotos; cycles are rejected at load. `{{ steps.<id>.output }}` keys off the **step id**.
 - Pages gotcha: no `.nojekyll` (breaks README rendering); see `tasks/lessons.md`.
 - Dogfood backends: Ollama `http://192.168.8.136:11434` (`qwen3:8b`); NVIDIA NIM
   `https://integrate.api.nvidia.com/v1` (key in `/root/.bashrc`), working model

@@ -1,0 +1,27 @@
+{
+  "pipeline_id": "digest_flow",
+  "version": 1,
+  "inputs": ["user_input"],
+  "steps": [
+    {
+      "id": "summarize",
+      "agent_id": "summarizer",
+      "input": "{{ inputs.user_input }}",
+      "output": "summary"
+    },
+    {
+      "id": "assess_risk",
+      "agent_id": "risk_assessor",
+      "input": "{{ inputs.user_input }}",
+      "output": "risk"
+    },
+    {
+      "id": "combine",
+      "agent_id": "generic_agent",
+      "input": "Summarize this in one reply.\nSummary: {{ steps.summarize.output }}\nRisk: {{ steps.assess_risk.output }}",
+      "output": "digest",
+      "needs": ["summarize", "assess_risk"]
+    }
+  ],
+  "output": "{{ steps.combine.output }}"
+}

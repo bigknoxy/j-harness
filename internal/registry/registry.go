@@ -212,15 +212,22 @@ func (r *Registry) validatePipeline(filenameID string, p *model.Pipeline) error 
 		allIDs[st.ID] = true
 	}
 
-	seen := map[string]bool{} // steps whose output is available to later steps
 	for _, st := range p.Steps {
 		refs, err := pipeline.ParseRefs(st.Input)
 		if err != nil {
 			return fmt.Errorf("step %q input: %w", st.ID, err)
 		}
 		for _, ref := range refs {
-			if err := checkRef(ref, inputs, seen, st.ID); err != nil {
+			// Steps are a DAG, so a step may reference any other step (forward
+			// or backward); only existence is checked here. Cycles are rejected
+			// by pipeline.Deps below.
+			if err := checkRef(ref, inputs, allIDs, ""); err != nil {
 				return fmt.Errorf("step %q input: %w", st.ID, err)
+			}
+		}
+		for _, need := range st.Needs {
+			if !allIDs[need] {
+				return fmt.Errorf("step %q needs unknown step %q", st.ID, need)
 			}
 		}
 
@@ -247,7 +254,6 @@ func (r *Registry) validatePipeline(filenameID string, p *model.Pipeline) error 
 			if defaults > 1 {
 				return fmt.Errorf("router step %q has multiple default routes", st.ID)
 			}
-			seen[st.ID] = true
 			continue
 		}
 
@@ -264,7 +270,10 @@ func (r *Registry) validatePipeline(filenameID string, p *model.Pipeline) error 
 		if !idPattern.MatchString(st.Output) {
 			return fmt.Errorf("step %q: invalid output name %q", st.ID, st.Output)
 		}
-		seen[st.ID] = true
+	}
+
+	if _, err := pipeline.Deps(*p); err != nil {
+		return err
 	}
 
 	if p.Output != "" {

@@ -1,0 +1,12 @@
+{
+  "id": "summarizer",
+  "description": "Summarize a piece of text in a few sentences.",
+  "prompt_path": "prompts/summarizer.md",
+  "model": "llama3.2",
+  "temperature": 0.3,
+  "max_tokens": 256,
+  "timeout_seconds": 300,
+  "output_format": "text",
+  "tools": [],
+  "version": 1
+}
