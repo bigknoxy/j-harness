@@ -7,6 +7,21 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Phase 11 — Redis is an alternate `Store` behind the same interface, with a
+  stdlib-only RESP client.**
+  `store.Store` is unchanged; a new `internal/store/redis` package implements it for
+  deployments that want job state to outlive a single container (or be shared across
+  replicas). Selection is explicit: `HARNESS_STORE=sqlite|redis`, default `sqlite`, so the
+  embedded single-binary path stays the default and Phase 0-10 behavior is untouched.
+  Connection is configured by `HARNESS_REDIS_ADDR` (default `127.0.0.1:6379`),
+  `HARNESS_REDIS_PASSWORD`, and `HARNESS_REDIS_DB`.
+  The adapter talks RESP directly over `net.Conn` instead of pulling in `go-redis`, honoring
+  the "one runtime dependency" discipline (see the SQLite decision): jobs are hashes under
+  `jh:job:<id>` plus per-status sets for `ListJobsByStatus`, and step results are a per-session
+  list under `jh:steps:<id>`. Duplicate session ids are rejected with `SADD` on a shared
+  `jh:sessions` set. A tiny mutex-guarded connection pool reuses sockets, redials on error,
+  and honors context deadlines. Redis remains optional: nothing in the engine or API changed.
+
 - **2026-09-24: Phase 10 — the container is a thin wrapper; the registry is the deployment.**
   The image only packages the compiled binary plus the registry bundle (`agent-registry/`), so a
   deploy is really a registry change. Two documented rollout modes: bake the registry into the

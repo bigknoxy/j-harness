@@ -46,7 +46,7 @@ services in v1: configuration is git-tracked files and job state is embedded SQL
 | `internal/pipeline` | DAG resolution, template grammar, router conditions |
 | `internal/schema` | small JSON Schema (draft-07 subset) validator for `output_schema` |
 | `internal/metrics` | in-process counters rendered as Prometheus text on `/metrics` |
-| `internal/store` | `Store` interface + SQLite implementation (Redis adapter later) |
+| `internal/store` | `Store` interface + SQLite and (optional) Redis implementations |
 | `internal/api` | HTTP handlers + middleware (auth, logging, recovery) |
 
 ## Execution model

@@ -14,14 +14,16 @@ vLLM, llama.cpp server), and exposes an async HTTP API: submit a job, poll for t
 
 Single binary. Embedded SQLite. No external services required.
 
-> **Status: Phase 10.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
+> **Status: Phase 11 (all phases complete).** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
 > async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`), the
 > registry can be created and updated over HTTP, and agents can call a small set of built-in
 > tools when `ENABLE_TOOLS=true`.
 > LLM calls retry transient failures with backoff, `json` outputs are validated against their
 > referenced JSON Schema (with one repair turn), and Prometheus metrics are exposed on
 > `GET /metrics`. A hardened container image and a compose file (harness + ollama) ship with a
-> GitOps deploy guide in [`docs/DEPLOY.md`](docs/DEPLOY.md). See
+> GitOps deploy guide in [`docs/DEPLOY.md`](docs/DEPLOY.md). Job state lives in embedded SQLite
+> by default; set `HARNESS_STORE=redis` to keep it in Redis instead (see
+> [`docs/DEPLOY.md`](docs/DEPLOY.md)). See
 > [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
 > [`tasks/todo.md`](tasks/todo.md) for the current work item.
 
@@ -59,6 +61,8 @@ make build            # -> bin/harness
 - **Local-first.** Point it at local CPU models (Ollama/llama.cpp) or hosted OpenAI. One
   config field switches the endpoint.
 - **Runs anywhere.** One Go binary + SQLite. No Redis / message broker required to start.
+  For multi-replica or restart-durable state, Redis is an opt-in store backend
+  (`HARNESS_STORE=redis`).
 
 ## Quickstart
 
@@ -145,8 +149,8 @@ This service runs LLM-driven tool calls, so treat it as code you did not write.
 | 7 | registry CRUD API | done |
 | 8 | tools / function calling (gated) | done |
 | 9 | hardening: retries, schema validation, metrics | done |
-| 10 | Docker + GitOps deploy docs | todo |
-| 11 | optional Redis store adapter | todo |
+| 10 | Docker + GitOps deploy docs | done |
+| 11 | optional Redis store adapter | done |
 
 ## Documentation
 
