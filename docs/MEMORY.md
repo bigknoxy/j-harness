@@ -7,6 +7,19 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Delivery track — releases, installer, Pages, branch protection.**
+  Versioned releases are cut by **GoReleaser** on `v*` tags (`.goreleaser.yaml` +
+  `.github/workflows/release.yml`), publishing linux/darwin/windows amd64+arm64 archives,
+  `checksums.txt`, and auto-generated notes to GitHub Releases. Archive names are
+  **version-less** (`j-harness_<os>_<arch>`) so `releases/latest/download/<asset>` is a
+  stable URL and the installer needs no API call. `install.sh` / `uninstall.sh` are plain
+  POSIX `sh`, verify the sha256 from `checksums.txt`, and install to `~/.local/bin` +
+  `~/.config/j-harness/registry` (all overridable). The Pages site is now a hand-written
+  `index.html` published verbatim by `gh-pages.yml` with `enable_jekyll: false`; `_config.yml`
+  was deleted (Jekyll no longer processes the site). `main` is PR-only with required checks
+  `build-test`/`smoke`, linear history, and **admin bypass allowed** (`enforce_admins: false`)
+  since the repo is single-maintainer. Rationale: stable download URLs, no Jekyll surprises,
+  and a repo that reads professionally without AI tells.
 - **2026-09-24: Phase 5 (v1) — pipelines run sequentially; omitting `output` means "last step".**
   `Engine.RunPipeline` walks steps in declared order. Router steps select one successor and
   mark the other branch targets `SKIPPED` (recorded as step rows). Because a skipped branch's

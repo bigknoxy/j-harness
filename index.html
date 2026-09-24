@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>j-harness: config-driven LLM agent harness in Go</title>
+<meta name="description" content="A small Go binary that runs LLM agents defined in git by Markdown prompts and JSON blueprints. Pipeline runs are JSON DAGs. Async HTTP API, embedded SQLite, works with any OpenAI-compatible endpoint.">
+<meta property="og:title" content="j-harness">
+<meta property="og:description" content="Config-driven LLM agent harness. Agents in .md + .json, pipelines in .json, async HTTP API, embedded SQLite.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230b0f14'/%3E%3Ctext x='50' y='68' font-family='monospace' font-size='54' fill='%2334d399' text-anchor='middle'%3Ej%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #111820;
+    --panel-2: #0e141b;
+    --line: #1f2a36;
+    --text: #d7e0e8;
+    --muted: #7d8b9c;
+    --accent: #34d399;
+    --accent-2: #5eead4;
+    --amber: #fbbf24;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 22px; }
+
+  header {
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #0d131a, var(--bg));
+  }
+  .top { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; font-size: 13px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: .3px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .top nav a { color: var(--muted); margin-left: 16px; }
+  .top nav a:hover { color: var(--text); }
+
+  .hero { padding: 62px 0 46px; }
+  .kicker { color: var(--accent); font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase; }
+  h1 { font-size: clamp(30px, 5.2vw, 46px); line-height: 1.12; margin: 14px 0 16px; letter-spacing: -0.5px; }
+  h1 .dim { color: var(--muted); }
+  .lede { font-size: 17px; color: var(--muted); max-width: 60ch; }
+  .cta { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-block; padding: 11px 18px; border-radius: 7px; font-size: 14px;
+    border: 1px solid var(--line); color: var(--text); background: var(--panel);
+  }
+  .btn:hover { text-decoration: none; border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #04120b; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { background: var(--accent-2); color: #04120b; }
+
+  section { padding: 40px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 13px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); margin: 0 0 22px; }
+
+  pre {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.65; margin: 0;
+  }
+  .prompt::before { content: "$ "; color: var(--accent); }
+  code { font-family: var(--mono); }
+  .cmt { color: var(--muted); }
+  .str { color: var(--accent-2); }
+  .kw { color: var(--amber); }
+
+  .grid { display: grid; gap: 16px; }
+  @media (min-width: 640px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 8px; font-size: 15px; color: var(--text); }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; }
+  td:first-child { color: var(--accent); white-space: nowrap; }
+  td code { color: var(--text); }
+  .method { color: var(--amber); }
+
+  .phase { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .phase.done { color: var(--accent); border-color: #1c4a3a; }
+  .phase.now { color: var(--amber); border-color: #4a3a1c; }
+
+  footer { padding: 34px 0 60px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--accent); }
+  .badges img { height: 20px; vertical-align: middle; margin: 0 8px 8px 0; }
+  ::selection { background: #1c4a3a; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="top">
+      <span class="brand"><span class="dot"></span>j-harness</span>
+      <nav>
+        <a href="#quickstart">quickstart</a>
+        <a href="#how">how it works</a>
+        <a href="#api">api</a>
+        <a href="https://github.com/bigknoxy/j-harness">github</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="kicker">LLM agents as files</div>
+    <h1>Agents live in git.<br><span class="dim">The engine stays small.</span></h1>
+    <p class="lede">
+      j-harness reads agents from Markdown prompts and JSON blueprints, wires them into
+      pipelines, and serves them over an async HTTP API. One Go binary, embedded SQLite,
+      and any OpenAI-compatible endpoint you point it at.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="#quickstart">Get started</a>
+      <a class="btn" href="https://github.com/bigknoxy/j-harness/releases/latest">Download binary</a>
+      <a class="btn" href="https://github.com/bigknoxy/j-harness">Source</a>
+    </div>
+  </div>
+
+  <section id="quickstart">
+    <h2>Quickstart</h2>
+    <pre><span class="cmt"># one line install (linux / macos)</span>
+curl -fsSL https://raw.githubusercontent.com/bigknoxy/j-harness/main/install.sh | sh
+
+<span class="cmt"># run it against a local model</span>
+<span class="prompt">HARNESS_REGISTRY=~/.config/j-harness/registry harness --addr 127.0.0.1:8080</span></pre>
+    <p style="color:var(--muted);font-size:13.5px;margin-top:14px">
+      Prefer Docker? <code>docker compose up --build</code> starts the harness and an Ollama
+      service together. Uninstall with <code>curl -fsSL .../uninstall.sh | sh</code>.
+    </p>
+  </section>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <pre>agent-registry/
+  blueprints/*.json   <span class="cmt">which prompt, model, params</span>
+  prompts/*.md        <span class="cmt">system prompt / persona</span>
+  pipelines/*.json    <span class="cmt">DAG of steps: agent steps + routers</span></pre>
+    <div class="grid two" style="margin-top:18px">
+      <div class="card">
+        <h3>Named IO</h3>
+        <p>Steps declare inputs and outputs. Later steps reference them with a strict
+        template grammar: <code>{{ steps.triage.output }}</code>.</p>
+      </div>
+      <div class="card">
+        <h3>Routing</h3>
+        <p>A router step picks one branch using conditions on JSON output:
+        equals, not_equals, in, matches, exists.</p>
+      </div>
+      <div class="card">
+        <h3>Async by default</h3>
+        <p>Submitting a job returns <code>202</code> with a session id. Poll the session for
+        status, result, and per-step timing and tokens.</p>
+      </div>
+      <div class="card">
+        <h3>Boring state</h3>
+        <p>Jobs and step results live in embedded SQLite with WAL. No broker, no daemon
+        to babysit. The store sits behind an interface.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="api">
+    <h2>HTTP API</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method">GET</span></td><td><code>/healthz</code></td><td>liveness</td></tr>
+        <tr><td><span class="method">GET</span></td><td><code>/readyz</code></td><td>readiness</td></tr>
+        <tr><td><span class="method">POST</span></td><td><code>/v1/agents/{id}/execute</code></td><td>submit an agent run, returns <code>202</code></td></tr>
+        <tr><td><span class="method">POST</span></td><td><code>/v1/pipelines/{id}/execute</code></td><td>submit a pipeline run, returns <code>202</code></td></tr>
+        <tr><td><span class="method">GET</span></td><td><code>/v1/sessions/{id}</code></td><td>poll status and result</td></tr>
+        <tr><td><span class="method">GET</span></td><td><code>/v1/sessions/{id}/steps</code></td><td>per-step results</td></tr>
+      </tbody>
+    </table>
+    <pre style="margin-top:20px">SESSION=$(curl -s -X POST localhost:8080/v1/agents/generic_agent/execute \
+  -H <span class="str">'Content-Type: application/json'</span> \
+  -d <span class="str">'{"input_data":"Say hello in five words."}'</span> | jq -r .session_id)
+
+curl -s localhost:8080/v1/sessions/$SESSION</pre>
+  </section>
+
+  <section id="roadmap">
+    <h2>Roadmap</h2>
+    <p style="color:var(--muted);font-size:14px">
+      <span class="phase done">done</span> registry, engine, HTTP API, async jobs, pipelines
+      &nbsp; <span class="phase now">next</span> DAG fan-out, registry CRUD, tools
+    </p>
+    <p style="color:var(--muted);font-size:13.5px;margin-top:16px">
+      Live progress: <a href="https://github.com/bigknoxy/j-harness/blob/main/tasks/roadmap.md">tasks/roadmap.md</a>.
+      Decisions and rationale: <a href="https://github.com/bigknoxy/j-harness/blob/main/docs/MEMORY.md">docs/MEMORY.md</a>.
+    </p>
+  </section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap badges">
+    <a href="https://github.com/bigknoxy/j-harness/actions/workflows/ci.yml"><img src="https://github.com/bigknoxy/j-harness/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="https://github.com/bigknoxy/j-harness/releases/latest"><img src="https://img.shields.io/github/v/release/bigknoxy/j-harness?color=34d399" alt="Latest release"></a>
+    <a href="https://github.com/bigknoxy/j-harness/blob/main/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/bigknoxy/j-harness?color=34d399" alt="Go version"></a>
+    <a href="https://github.com/bigknoxy/j-harness/blob/main/LICENSE"><img src="https://img.shields.io/github/license/bigknoxy/j-harness?color=34d399" alt="License"></a>
+  </div>
+  <div class="wrap" style="margin-top:14px">
+    MIT licensed. Built as a small, config-driven core you can read in an afternoon.
+  </div>
+</footer>
+
+</body>
+</html>

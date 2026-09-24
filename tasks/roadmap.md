@@ -23,13 +23,13 @@ Live phase tracker. Update the Status column as phases complete. v1 shipped at e
 
 | Item | Deliverable | Status |
 |---|---|---|
-| D1 | Branch protection on `main` (PR-only, admin bypass allowed) | ⬜ todo |
-| D2 | CI best practices: lint, test matrix, vuln scan, release job | ⬜ todo |
-| D3 | Automated versioned releases (GoReleaser) + GitHub Releases | ⬜ todo |
-| D4 | One-line `curl` installer + uninstaller | ⬜ todo |
-| D5 | Custom GH Pages site (`index.html`), fun + tech-forward, no AI tells | ⬜ todo |
-| D6 | Repo homepage URL -> Pages; topics + description | ⬜ todo |
-| D7 | README badges (build, release, Go version, license) | ⬜ todo |
-| D8 | Dogfood: run real agents/pipelines via Ollama + NVIDIA NIM | ⬜ todo |
+| D1 | Branch protection on `main` (PR-only, admin bypass allowed) | ✅ done |
+| D2 | CI best practices: lint, test matrix, vuln scan, release job | ✅ done |
+| D3 | Automated versioned releases (GoReleaser) + GitHub Releases | ✅ done |
+| D4 | One-line `curl` installer + uninstaller | ✅ done |
+| D5 | Custom GH Pages site (`index.html`), fun + tech-forward, no AI tells | ✅ done |
+| D6 | Repo homepage URL -> Pages; topics + description | ✅ done |
+| D7 | README badges (build, release, Go version, license) | ✅ done |
+| D8 | Dogfood: run real agents/pipelines via Ollama + NVIDIA NIM | 🚧 in progress |
 
 Legend: ⬜ todo · 🚧 in progress · ✅ done · ⛔ blocked
