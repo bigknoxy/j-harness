@@ -4,23 +4,40 @@
 #   docker compose exec ollama ollama pull llama3.2
 #
 # Then: curl -s localhost:8080/healthz
+#
+# For a remote/hosted endpoint, drop the `ollama` service and set
+# OPENAI_BASE_URL + OPENAI_API_KEY in a .env file next to this compose file.
 services:
   harness:
-    build: .
+    build:
+      context: .
+      args:
+        VERSION: ${HARNESS_VERSION:-dev}
+    # Pin a released image instead of building, e.g.:
+    # image: ghcr.io/bigknoxy/j-harness:0.1.0
     ports:
       - "127.0.0.1:8080:8080"
     environment:
       HARNESS_ADDR: "0.0.0.0:8080"
+      HARNESS_DB: "/app/data/harness.db"
+      HARNESS_RETRIES: "${HARNESS_RETRIES:-3}"
       # Point agents at the local model server:
-      OPENAI_BASE_URL: "http://ollama:11434/v1"
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-http://ollama:11434/v1}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-ollama}"   # local servers ignore the value
       # HARNESS_AUTH_TOKEN: "${HARNESS_AUTH_TOKEN}" # set when exposing beyond localhost
-      ENABLE_TOOLS: "false"
+      ENABLE_TOOLS: "${ENABLE_TOOLS:-false}"
     volumes:
       - ./agent-registry:/app/agent-registry:ro
       - ./data:/app/data
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     restart: unless-stopped
 
   ollama:
@@ -29,6 +46,12 @@ services:
       - "127.0.0.1:11434:11434"
     volumes:
       - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
 
 volumes:

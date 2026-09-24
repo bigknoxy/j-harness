@@ -4,13 +4,15 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **Phase 10 — Docker + compose + GitOps deploy docs**
+- [ ] **Phase 11 — Optional Redis `Store` adapter**
 
 ## Next action
 
-- Confirm the checked-in `Dockerfile` + `docker-compose.yml` cover harness + ollama and that
-  the image is `CGO_ENABLED=0`. Then document a GitOps deploy (registry in git, image tag
-  pinned, `ENABLE_TOOLS`/`HARNESS_RETRIES` as config) and verify `docker build` locally.
+- Decide the Redis adapter shape: keep `store.Store` unchanged and add
+  `internal/store/redis` implementing the same interface (jobs + step results as hashes/lists),
+  selected in `main` via `HARNESS_STORE=sqlite|redis`. Record the decision in
+  `docs/MEMORY.md` before coding, then implement behind build-tag-free plain Go with a
+  `go-redis`-free minimal client or a documented dependency decision. SQLite stays the default.
 
 ## Blockers
 
@@ -18,10 +20,22 @@ None.
 
 ## Backlog (engine phases, in order)
 
-- [ ] **Phase 10**: Docker + compose + GitOps deploy docs
 - [ ] **Phase 11**: optional Redis `Store` adapter
 
 ## Done
+
+- [x] **Phase 10 — Docker + compose + GitOps deploy docs**
+  (verified: `docker build --build-arg VERSION=0.1.0 -t j-harness:test .` succeeded;
+  `docker run --rm j-harness:test --version` -> `j-harness 0.1.0`; booted container served
+  `/healthz {"status":"ok","version":"0.1.0"}` and `/metrics` counters; image ~20MB.
+  Full gate + smoke green.)
+  - `.dockerignore` added so the build context is small and reproducible
+  - `Dockerfile`: `ARG VERSION` stamped into `harness --version` via ldflags
+  - `docker-compose.yml`: harness + ollama with healthchecks, `depends_on: service_healthy`,
+    registry mounted read-only, `./data` volume, pinned-image option, configurable env
+  - `docs/DEPLOY.md`: image build, compose, full env table, auth note, GitOps
+    "the registry is the deployment" model (promote by tag; baked vs mounted), operating
+    notes (SQLite WAL backup, orphan requeue, `/metrics`, logs), hardening checklist
 
 - [x] **Phase 9 — Hardening (retries / backoff, output-schema validation, metrics)**
   (verified: `make fmt-check vet test build` passed; smoke green incl. a `GET /metrics`

@@ -16,8 +16,8 @@ Live phase tracker. Update the Status column as phases complete. v1 shipped at e
 | 7 | Registry CRUD API (create/update/list agents & pipelines) | ✅ done |
 | 8 | Tools / function calling (gated) | ✅ done |
 | 9 | Hardening: retries/backoff, JSON-schema validation, metrics | ✅ done |
-| 10 | Docker + compose (harness + ollama), GitOps deploy docs | 🚧 in progress |
-| 11 | Optional Redis `Store` adapter | ⬜ todo |
+| 10 | Docker + compose (harness + ollama), GitOps deploy docs | ✅ done |
+| 11 | Optional Redis `Store` adapter | 🚧 in progress |
 
 ## Delivery track (professional polish)
 

@@ -7,6 +7,15 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Phase 10 — the container is a thin wrapper; the registry is the deployment.**
+  The image only packages the compiled binary plus the registry bundle (`agent-registry/`), so a
+  deploy is really a registry change. Two documented rollout modes: bake the registry into the
+  image at build time (immutable, promote by tag) or mount it read-only / manage it over the
+  CRUD API (mutable, hot-swap). `VERSION` is passed as a build arg and stamped into
+  `harness --version` so an image can be identified from `/healthz`. Compose ships healthchecks
+  on both harness (`/healthz`) and ollama, and `depends_on: service_healthy` so the harness does
+  not start before the model server is reachable. `.dockerignore` keeps the build context small.
+
 - **2026-09-24: Phase 9 — retries live in a client decorator; schema errors get one repair turn.**
   Retries wrap the `llm.Client` (`llm.NewRetry`), not the engine, so any code path that calls
   the model benefits and the engine stays a pure policy layer. Only transport failures and

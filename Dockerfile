@@ -5,7 +5,10 @@ COPY go.mod ./
 COPY go.sum* ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w" -o /out/harness ./cmd/harness
+ARG VERSION=dev
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION}" \
+    -o /out/harness ./cmd/harness
 
 # --- runtime stage ---
 FROM alpine:3.20

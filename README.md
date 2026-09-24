@@ -14,13 +14,14 @@ vLLM, llama.cpp server), and exposes an async HTTP API: submit a job, poll for t
 
 Single binary. Embedded SQLite. No external services required.
 
-> **Status: Phase 9.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
+> **Status: Phase 10.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
 > async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`), the
 > registry can be created and updated over HTTP, and agents can call a small set of built-in
 > tools when `ENABLE_TOOLS=true`.
 > LLM calls retry transient failures with backoff, `json` outputs are validated against their
 > referenced JSON Schema (with one repair turn), and Prometheus metrics are exposed on
-> `GET /metrics`. Docker packaging and GitOps deploy docs arrive in the last phase. See
+> `GET /metrics`. A hardened container image and a compose file (harness + ollama) ship with a
+> GitOps deploy guide in [`docs/DEPLOY.md`](docs/DEPLOY.md). See
 > [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
 > [`tasks/todo.md`](tasks/todo.md) for the current work item.
 
@@ -72,6 +73,9 @@ Docker:
 ```bash
 docker compose up --build               # starts harness + ollama
 ```
+
+See [`docs/DEPLOY.md`](docs/DEPLOY.md) for image builds, configuration, and the GitOps
+deploy model (the registry itself is the deployment, promoted by tag).
 
 ## How it works
 
