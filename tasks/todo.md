@@ -40,6 +40,15 @@ None.
 
 ## Done
 
+- [x] **D8 — Dogfood: real runs via a hosted OpenAI-compatible provider**
+  (verified: ran the checked-in registry through the async API against NVIDIA NIM
+  `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`. `triage` classified billing -> high and a
+  crash -> technical; `support_flow` routed correctly to `billing_reply` / `tech_reply` with
+  the other branches `SKIPPED`. Homelab Ollama was saturated, so it was not used. Notes in
+  `docs/MEMORY.md`.)
+- [x] **Delivery track D1–D7** (branch protection, CI, GoReleaser releases, installer +
+  uninstaller, Pages site, repo polish, README badges). v0.1.0 release published with
+  linux/darwin/windows amd64+arm64 assets; one-liner install/uninstall verified end to end.
 - [x] **Phase 0 — Bootstrap** (CI + Pages green; live at https://bigknoxy.github.io/j-harness/)
 - [x] **Phase 1 — Registry** (load/validate/atomic-write + tests)
 - [x] **Phase 2 — LLM client + single-agent execution**

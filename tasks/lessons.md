@@ -14,6 +14,28 @@ Append a new entry after any correction or postmortem. Newest first.
 
 _No entries yet._
 
+### 2026-09-24 — Flaky `TestSubmitQueueFull` (worker dequeue race)
+- **Failure mode:** The test submitted three jobs to a pool with `Workers:1, Queue:1` and
+  expected the third to hit `ErrQueueFull`. On faster runners (macOS CI) the worker had
+  already dequeued job 1 before job 2 was submitted, so job 2 landed in the queue and job 3
+  succeeded instead of being rejected, failing the assertion.
+- **Detection signal:** `test (macos-latest, 1.27)` failed with `submit b2: engine: job queue
+  is full`; the same test passed on Linux.
+- **Prevention rule:** Never rely on goroutine scheduling for determinism. Make the worker's
+  progress observable (a `started` channel closed inside `Complete`) and block the test until
+  the worker is provably busy before asserting queue-full behavior.
+
+### 2026-09-24 — Registry schemas must live inside the registry bundle
+- **Failure mode:** Blueprints reference `output_schema` by a path relative to the registry
+  root (`schemas/triage.json`), but `schemas/` lived at the repo top level. A registry
+  fetched by `install.sh` was therefore not self-contained, and `uninstall.sh` left an
+  orphaned `~/.config/j-harness/schemas` directory behind.
+- **Detection signal:** Ran the real one-liner installer, then the uninstaller, and found
+  `~/.config/j-harness/schemas` still present.
+- **Prevention rule:** Anything a blueprint references by a registry-relative path must be
+  shipped inside `agent-registry/`. Treat the registry as one self-contained bundle for
+  install / run / Docker / uninstall.
+
 ### 2026-09-24 — `.nojekyll` breaks README-only GitHub Pages
 - **Failure mode:** Published the repo root to the `gh-pages` branch with a committed
   `.nojekyll` marker. Jekyll was disabled, so `README.md` was never converted to `index.html`;

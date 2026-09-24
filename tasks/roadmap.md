@@ -30,6 +30,6 @@ Live phase tracker. Update the Status column as phases complete. v1 shipped at e
 | D5 | Custom GH Pages site (`index.html`), fun + tech-forward, no AI tells | ✅ done |
 | D6 | Repo homepage URL -> Pages; topics + description | ✅ done |
 | D7 | README badges (build, release, Go version, license) | ✅ done |
-| D8 | Dogfood: run real agents/pipelines via Ollama + NVIDIA NIM | 🚧 in progress |
+| D8 | Dogfood: run real agents/pipelines via a hosted provider | ✅ done |
 
 Legend: ⬜ todo · 🚧 in progress · ✅ done · ⛔ blocked
