@@ -12,7 +12,16 @@ Append a new entry after any correction or postmortem. Newest first.
 - **Prevention rule:** what to do instead
 ```
 
-_No entries yet._
+### 2026-09-24 — Registry writes must not mutate the live snapshot in place
+- **Failure mode:** Editing an agent through the HTTP CRUD API could swap registry fields
+  (`Registry` internals) while a worker was mid-run, so an in-flight execution could observe a
+  half-updated agent or prompt.
+- **Detection signal:** Design review; no test could pin the exact interleaving, but the shared
+  pointer was plainly unsynchronized.
+- **Prevention rule:** Treat a loaded registry as an immutable snapshot. Serve execution from a
+  snapshot pointer; when a write lands, validate + atomically write, reload the *whole* registry,
+  then swap the pointer behind a lock (`Engine.SetRegistry` + `RWMutex`). In-flight runs keep the
+  snapshot they started with.
 
 ### 2026-09-24 — Three concurrency-loop bugs in the DAG scheduler
 - **Failure mode:** The first `RunPipeline` DAG scheduler (a) exited as soon as no steps were
