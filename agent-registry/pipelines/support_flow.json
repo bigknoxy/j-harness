@@ -1,0 +1,42 @@
+{
+  "pipeline_id": "support_flow",
+  "version": 1,
+  "inputs": ["user_input"],
+  "steps": [
+    {
+      "id": "triage",
+      "agent_id": "triage",
+      "input": "{{ inputs.user_input }}",
+      "output": "classification"
+    },
+    {
+      "id": "route",
+      "router": true,
+      "input": "{{ steps.triage.output }}",
+      "routes": [
+        { "when": { "field": "category", "equals": "billing" }, "goto": "billing_reply" },
+        { "when": { "field": "category", "equals": "technical" }, "goto": "tech_reply" },
+        { "default": true, "goto": "generic_reply" }
+      ]
+    },
+    {
+      "id": "billing_reply",
+      "agent_id": "generic_agent",
+      "input": "{{ inputs.user_input }}",
+      "output": "reply"
+    },
+    {
+      "id": "tech_reply",
+      "agent_id": "generic_agent",
+      "input": "{{ inputs.user_input }}",
+      "output": "reply"
+    },
+    {
+      "id": "generic_reply",
+      "agent_id": "generic_agent",
+      "input": "{{ inputs.user_input }}",
+      "output": "reply"
+    }
+  ],
+  "output": "{{ steps.reply.output }}"
+}

@@ -1,0 +1,35 @@
+# j-harness + a local OpenAI-compatible model server.
+#
+#   docker compose up --build
+#   docker compose exec ollama ollama pull llama3.2
+#
+# Then: curl -s localhost:8080/healthz
+services:
+  harness:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      HARNESS_ADDR: "0.0.0.0:8080"
+      # Point agents at the local model server:
+      OPENAI_BASE_URL: "http://ollama:11434/v1"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-ollama}"   # local servers ignore the value
+      # HARNESS_AUTH_TOKEN: "${HARNESS_AUTH_TOKEN}" # set when exposing beyond localhost
+      ENABLE_TOOLS: "false"
+    volumes:
+      - ./agent-registry:/app/agent-registry:ro
+      - ./data:/app/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama-models:

@@ -1,0 +1,13 @@
+{
+  "id": "triage",
+  "description": "Classify an inbound support message into a category and priority.",
+  "prompt_path": "prompts/triage.md",
+  "model": "llama3.2",
+  "temperature": 0.0,
+  "max_tokens": 256,
+  "timeout_seconds": 300,
+  "output_format": "json",
+  "output_schema": "schemas/triage.json",
+  "tools": [],
+  "version": 1
+}
