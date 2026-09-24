@@ -4,12 +4,13 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **Phase 8 — Tools / function calling (gated)**
+- [ ] **Phase 9 — Hardening (retries / backoff, output-schema validation, metrics)**
 
 ## Next action
 
-- Decide the tool schema and the gating model (`ENABLE_TOOLS` opt-in, per-deployment
-  allowlist, per-blueprint `tools` list) and record it in `docs/MEMORY.md` before coding.
+- Decide the retry policy (which errors are retryable, max attempts, backoff, where it lives:
+  llm client vs engine) and how `output_schema` is enforced (validate the parsed JSON against
+  the referenced schema, bounded retry on mismatch). Record both in `docs/MEMORY.md` first.
 
 ## Blockers
 
@@ -17,12 +18,26 @@ None.
 
 ## Backlog (engine phases, in order)
 
-- [ ] **Phase 8**: tools / function calling (gated)
 - [ ] **Phase 9**: hardening (retries, JSON-schema validation, metrics)
 - [ ] **Phase 10**: Docker + compose + GitOps deploy docs
 - [ ] **Phase 11**: optional Redis `Store` adapter
 
 ## Done
+
+- [x] **Phase 8 — Tools / function calling (gated)** (verified: `go build ./...` clean;
+  `gofmt -l internal cmd` empty; `go test -race ./...` all packages ok;
+  `internal/tools/tools_test.go` covers the arithmetic evaluator + registry;
+  `internal/engine/tools_test.go` covers tool round-trip, fail-closed when disabled,
+  unknown-tool rejection, no-tools passthrough, and the bounded loop)
+  - `internal/tools`: fixed built-in allowlist (`current_time`, `word_count`, `math_eval`);
+    pure, side-effect-free, no shell/fs/network; own recursive-descent arithmetic evaluator
+  - `internal/llm`: `Message` gained `ToolCalls`/`ToolCallID`; `Request` gained `Messages`
+    + `Tools`; `Response` gained `ToolCalls`; OpenAI client forwards tools
+  - `internal/engine/tools.go`: `resolveTools` (fail-closed) + `completeWithTools`
+    (bounded `maxToolRounds = 5`)
+  - `internal/registry`: unknown tool names rejected at load
+  - `cmd/harness`: `ENABLE_TOOLS=true` builds the allowlist and calls `eng.SetTools`
+  - `agent-registry/blueprints/calculator.json` + prompt: checked-in tool example
 
 - [x] **Phase 7 — Registry CRUD API** (verified: `make fmt-check vet test build` passed;
   smoke green; `internal/api/registry_test.go` covers list/get/create/update, id-mismatch

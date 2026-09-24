@@ -1,0 +1,1 @@
+{"id":"calculator","description":"Answer arithmetic questions using the math_eval tool.","prompt_path":"prompts/calculator.md","model":"llama3.2","temperature":0.0,"max_tokens":512,"timeout_seconds":300,"output_format":"text","tools":["math_eval","current_time","word_count"],"version":1}

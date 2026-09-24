@@ -53,7 +53,9 @@ services in v1: configuration is git-tracked files and job state is embedded SQL
    a `Job` (`PENDING`) to the store, enqueues it, and returns `202 {session_id}`.
 2. A worker dequeues the job, marks it `RUNNING`, and executes steps:
    - **agent step:** resolve input template → load blueprint + prompt → call `llm.Client` →
-     persist named output + a `StepResult` (timing/tokens/status).
+     persist named output + a `StepResult` (timing/tokens/status). If the blueprint lists
+     tools (and `ENABLE_TOOLS=true`), the engine runs a bounded tool-calling loop (at most
+     `maxToolRounds` model turns), feeding tool results back as `role: "tool"` messages.
    - **router step:** evaluate route conditions against the resolved input → select next step(s).
    - **fan-out/fan-in:** steps with multiple successors run in parallel; a join step waits for
      all declared predecessors.
@@ -77,6 +79,9 @@ On startup, jobs left in `RUNNING` (process died mid-flight) are requeued to `PE
   local inference serializes. See `docs/MEMORY.md`.
 - **Persistence:** SQLite in WAL mode; the `Store` interface isolates the engine from storage.
 - **Security:** default bind `127.0.0.1`, bearer-token auth when exposed, tools gated by
-  `ENABLE_TOOLS` and an allowlist. Registry IDs are sanitized.
+  `ENABLE_TOOLS` and a fixed, side-effect-free built-in allowlist (`current_time`,
+  `word_count`, `math_eval`). A blueprint that requests an unknown tool, or any tool while
+  tools are disabled, fails closed. No shell, filesystem, or arbitrary-network tool exists.
+  Registry IDs are sanitized.
 - **Observability:** per-step `StepResult` rows; structured logging; `/healthz` + `/readyz`;
   metrics endpoint planned (Phase 9).

@@ -15,6 +15,7 @@ import (
 
 	"github.com/bigknoxy/j-harness/internal/model"
 	"github.com/bigknoxy/j-harness/internal/pipeline"
+	"github.com/bigknoxy/j-harness/internal/tools"
 )
 
 // Sub-directory names within a registry root.
@@ -170,6 +171,11 @@ func (r *Registry) validateBlueprint(filenameID string, bp *model.AgentBlueprint
 	}
 	if strings.TrimSpace(bp.Model) == "" {
 		return errors.New("model is required")
+	}
+	for _, tool := range bp.Tools {
+		if !tools.IsBuiltin(tool) {
+			return fmt.Errorf("unknown tool %q", tool)
+		}
 	}
 	switch bp.OutputFormat {
 	case "", model.OutputText, model.OutputJSON:

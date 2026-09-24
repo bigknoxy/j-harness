@@ -44,14 +44,10 @@ func NewOpenAI(cfg OpenAIConfig) (*OpenAIClient, error) {
 	}, nil
 }
 
-type chatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
 type chatRequest struct {
 	Model          string          `json:"model"`
-	Messages       []chatMessage   `json:"messages"`
+	Messages       []Message       `json:"messages"`
+	Tools          []Tool          `json:"tools,omitempty"`
 	Temperature    *float64        `json:"temperature,omitempty"`
 	MaxTokens      int             `json:"max_tokens,omitempty"`
 	ResponseFormat *responseFormat `json:"response_format,omitempty"`
@@ -64,7 +60,7 @@ type responseFormat struct {
 
 type chatResponse struct {
 	Choices []struct {
-		Message chatMessage `json:"message"`
+		Message Message `json:"message"`
 	} `json:"choices"`
 	Usage *struct {
 		PromptTokens     int `json:"prompt_tokens"`
@@ -91,15 +87,20 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (Response, err
 		return Response{}, fmt.Errorf("llm: model is required")
 	}
 
-	var messages []chatMessage
-	if req.SystemPrompt != "" {
-		messages = append(messages, chatMessage{Role: "system", Content: req.SystemPrompt})
+	var messages []Message
+	if len(req.Messages) > 0 {
+		messages = req.Messages
+	} else {
+		if req.SystemPrompt != "" {
+			messages = append(messages, Message{Role: "system", Content: req.SystemPrompt})
+		}
+		messages = append(messages, Message{Role: "user", Content: req.UserInput})
 	}
-	messages = append(messages, chatMessage{Role: "user", Content: req.UserInput})
 
 	body := chatRequest{
 		Model:       model,
 		Messages:    messages,
+		Tools:       req.Tools,
 		Temperature: req.Temperature,
 		MaxTokens:   req.MaxTokens,
 	}
@@ -150,7 +151,7 @@ func (c *OpenAIClient) Complete(ctx context.Context, req Request) (Response, err
 		return Response{}, fmt.Errorf("llm: response contained no choices")
 	}
 
-	out := Response{Content: parsed.Choices[0].Message.Content}
+	out := Response{Content: parsed.Choices[0].Message.Content, ToolCalls: parsed.Choices[0].Message.ToolCalls}
 	if parsed.Usage != nil {
 		out.PromptTokens = parsed.Usage.PromptTokens
 		out.OutputTokens = parsed.Usage.CompletionTokens

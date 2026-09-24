@@ -35,7 +35,7 @@ Defines one agent: which prompt to load, which model/params, and (optionally) to
 | `timeout_seconds` | int | per-call timeout (default from config) |
 | `output_format` | string | `text` (default) or `json` |
 | `output_schema` | string | optional JSON Schema for `json` output |
-| `tools` | []string | tool names; only honored when `ENABLE_TOOLS=true` |
+| `tools` | []string | built-in tool names; only honored when `ENABLE_TOOLS=true`. Built-ins: `current_time`, `word_count`, `math_eval`. Unknown names are rejected on load |
 | `version` | int | schema version (currently `1`) |
 
 ## Pipeline — `agent-registry/pipelines/<id>.json`

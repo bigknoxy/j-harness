@@ -14,11 +14,12 @@ vLLM, llama.cpp server), and exposes an async HTTP API: submit a job, poll for t
 
 Single binary. Embedded SQLite. No external services required.
 
-> **Status: Phase 7.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
-> async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`), and the
-> registry can be created and updated over HTTP.
-> Branching routers, parallel DAGs, and registry CRUD are supported today; tools arrive in
-> later phases. See
+> **Status: Phase 8.** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
+> async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`), the
+> registry can be created and updated over HTTP, and agents can call a small set of built-in
+> tools when `ENABLE_TOOLS=true`.
+> Branching routers, parallel DAGs, registry CRUD, and gated tools are supported today;
+> hardening (retries, output-schema validation, metrics) arrives in later phases. See
 > [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
 > [`tasks/todo.md`](tasks/todo.md) for the current work item.
 
@@ -116,11 +117,13 @@ same registry files. Tools arrive in a later phase. Full reference:
 
 ## Security
 
-This service can execute LLM-driven tool calls. **Treat it as remote code execution.**
+This service runs LLM-driven tool calls, so treat it as code you did not write.
 
 - Default bind is `127.0.0.1`; when exposed, set `HARNESS_AUTH_TOKEN` and require a bearer token.
-- Tool calling is **off by default** (`ENABLE_TOOLS=false`) and restricted to a per-deployment
-  allowlist when enabled.
+- Tool calling is **off by default** (`ENABLE_TOOLS=false`). When enabled, only a fixed,
+  side-effect-free allowlist is available (`current_time`, `word_count`, `math_eval`); there
+  is no shell, filesystem, or arbitrary-network tool. A blueprint that requests an unknown
+  tool, or any tool while tools are disabled, fails closed.
 - Never commit secrets. `OPENAI_API_KEY` is read from the environment only and is never logged.
 
 ## Roadmap
@@ -135,7 +138,7 @@ This service can execute LLM-driven tool calls. **Treat it as remote code execut
 | 5 | sequential pipeline (named IO) - **v1** | done |
 | 6 | DAG fan-out/fan-in + router | done |
 | 7 | registry CRUD API | done |
-| 8 | tools / function calling (gated) | todo |
+| 8 | tools / function calling (gated) | done |
 | 9 | hardening: retries, schema validation, metrics | todo |
 | 10 | Docker + GitOps deploy docs | todo |
 | 11 | optional Redis store adapter | todo |
