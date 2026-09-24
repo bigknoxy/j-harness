@@ -1,14 +1,16 @@
 // Command harness runs the j-harness agent execution service.
 //
 // It loads the file-based agent registry, builds an OpenAI-compatible LLM client
-// from the environment, and serves the async HTTP API backed by an embedded
-// SQLite store and a bounded worker pool (see docs/API.md).
+// from the environment, and serves the async HTTP API backed by a job store
+// (embedded SQLite by default, Redis optional) and a bounded worker pool (see
+// docs/API.md).
 package main
 
 import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -24,6 +26,7 @@ import (
 	"github.com/bigknoxy/j-harness/internal/metrics"
 	"github.com/bigknoxy/j-harness/internal/registry"
 	"github.com/bigknoxy/j-harness/internal/store"
+	redisstore "github.com/bigknoxy/j-harness/internal/store/redis"
 	"github.com/bigknoxy/j-harness/internal/tools"
 )
 
@@ -34,6 +37,7 @@ func main() {
 	addr := flag.String("addr", envOr("HARNESS_ADDR", "127.0.0.1:8080"), "HTTP listen address")
 	registryPath := flag.String("registry", envOr("HARNESS_REGISTRY", "./agent-registry"), "agent registry root directory")
 	dbPath := flag.String("db", envOr("HARNESS_DB", "./data/harness.db"), "SQLite database path")
+	storeKind := flag.String("store", envOr("HARNESS_STORE", "sqlite"), "job store backend: sqlite or redis")
 	workers := flag.Int("workers", envInt("HARNESS_WORKERS", runtime.NumCPU()), "number of worker goroutines")
 	retries := flag.Int("retries", envInt("HARNESS_RETRIES", 3), "max LLM attempts per call (1 disables retries)")
 	showVersion := flag.Bool("version", false, "print version and exit")
@@ -51,12 +55,11 @@ func main() {
 	log.Printf("registry %s: %d blueprint(s), %d pipeline(s)",
 		*registryPath, len(reg.BlueprintIDs()), len(reg.PipelineIDs()))
 
-	st, err := store.Open(*dbPath)
+	st, err := openStore(*storeKind, *dbPath)
 	if err != nil {
-		log.Fatalf("open store %s: %v", *dbPath, err)
+		log.Fatalf("open %s store: %v", *storeKind, err)
 	}
 	defer func() { _ = st.Close() }()
-	log.Printf("store %s: ready", *dbPath)
 
 	baseClient, err := llm.NewOpenAI(llm.OpenAIConfig{
 		BaseURL: envOr("OPENAI_BASE_URL", "http://127.0.0.1:11434/v1"),
@@ -139,6 +142,39 @@ func main() {
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("graceful shutdown failed: %v", err)
+	}
+}
+
+// openStore selects the job store backend. SQLite (the embedded default) has no
+// external dependency; Redis is opt-in for shared or restart-durable state.
+func openStore(kind, dbPath string) (store.Store, error) {
+	switch kind {
+	case "sqlite", "":
+		st, err := store.Open(dbPath)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("store sqlite %s: ready", dbPath)
+		return st, nil
+	case "redis":
+		cfg := redisstore.Config{
+			Addr:      envOr("HARNESS_REDIS_ADDR", "127.0.0.1:6379"),
+			Password:  os.Getenv("HARNESS_REDIS_PASSWORD"), // env-only; never logged
+			KeyPrefix: envOr("HARNESS_REDIS_PREFIX", "jh:"),
+		}
+		if v := envOr("HARNESS_REDIS_DB", ""); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				cfg.DB = n
+			}
+		}
+		st, err := redisstore.Open(cfg)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("store redis %s db %d: ready", cfg.Addr, cfg.DB)
+		return st, nil
+	default:
+		return nil, fmt.Errorf("unknown store %q (want sqlite or redis)", kind)
 	}
 }
 

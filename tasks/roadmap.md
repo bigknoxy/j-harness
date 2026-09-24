@@ -17,7 +17,7 @@ Live phase tracker. Update the Status column as phases complete. v1 shipped at e
 | 8 | Tools / function calling (gated) | ✅ done |
 | 9 | Hardening: retries/backoff, JSON-schema validation, metrics | ✅ done |
 | 10 | Docker + compose (harness + ollama), GitOps deploy docs | ✅ done |
-| 11 | Optional Redis `Store` adapter | 🚧 in progress |
+| 11 | Optional Redis `Store` adapter | ✅ done |
 
 ## Delivery track (professional polish)
 

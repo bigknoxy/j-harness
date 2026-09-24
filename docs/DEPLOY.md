@@ -42,6 +42,11 @@ Every knob is an environment variable; no config file is required.
 | `HARNESS_ADDR` | `127.0.0.1:8080` | listen address (image sets `0.0.0.0:8080`) |
 | `HARNESS_REGISTRY` | `./agent-registry` | registry root |
 | `HARNESS_DB` | `./data/harness.db` | SQLite path (jobs + step results) |
+| `HARNESS_STORE` | `sqlite` | job store backend: `sqlite` or `redis` |
+| `HARNESS_REDIS_ADDR` | `127.0.0.1:6379` | Redis address when `HARNESS_STORE=redis` |
+| `HARNESS_REDIS_PASSWORD` | unset | Redis `AUTH` password |
+| `HARNESS_REDIS_DB` | `0` | Redis logical database (`SELECT`) |
+| `HARNESS_REDIS_PREFIX` | `jh:` | key namespace (run several deployments on one Redis) |
 | `HARNESS_WORKERS` | number of CPUs | worker goroutines |
 | `HARNESS_RETRIES` | `3` | max LLM attempts per call (`1` disables) |
 | `HARNESS_AUTH_TOKEN` | unset | bearer token for `/v1/*` (see below) |
@@ -78,6 +83,30 @@ Two ways to roll the registry forward:
   does). Update the checkout and restart, or use the registry CRUD API to write
   files in place, which hot-swaps the in-memory snapshot without a restart. Mount
   it read-only if you only deploy through new images.
+
+## Job store: SQLite or Redis
+
+Job state lives in embedded SQLite by default: one file, no external service,
+ideal for a single instance. Set `HARNESS_STORE=redis` to move it to Redis
+instead, which buys two things:
+
+- **Restart durability independent of the container filesystem.** State survives
+  a redeploy even when `./data` is not a volume.
+- **Shared state across replicas.** Several harness processes can point at the
+  same Redis (use a distinct `HARNESS_REDIS_PREFIX` per deployment).
+
+Redis keys are ordinary data under the prefix: `seq`, `sessions`, `job:<id>`
+hashes, `jobs:<STATUS>` sorted sets, and `steps:<id>` lists. Nothing else is
+stored. The adapter speaks the wire protocol directly (no extra dependency) and
+reuses a small connection pool.
+
+```bash
+docker run -d --name redis -p 127.0.0.1:6379:6379 redis:7-alpine
+HARNESS_STORE=redis HARNESS_REDIS_ADDR=127.0.0.1:6379 ./harness
+```
+
+SQLite remains the default and is the right choice unless you need shared or
+restart-durable state.
 
 ## Operating
 

@@ -4,15 +4,13 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **Phase 11 — Optional Redis `Store` adapter**
+- [ ] (none — all phases complete)
 
 ## Next action
 
-- Decide the Redis adapter shape: keep `store.Store` unchanged and add
-  `internal/store/redis` implementing the same interface (jobs + step results as hashes/lists),
-  selected in `main` via `HARNESS_STORE=sqlite|redis`. Record the decision in
-  `docs/MEMORY.md` before coding, then implement behind build-tag-free plain Go with a
-  `go-redis`-free minimal client or a documented dependency decision. SQLite stays the default.
+- No engine phases remain. Optional follow-ups if ever wanted: streaming
+  responses, a `POST /v1/sessions/{id}/cancel` endpoint, or per-tenant auth. Not
+  planned; add a new phase to `tasks/roadmap.md` first if picked up.
 
 ## Blockers
 
@@ -20,9 +18,28 @@ None.
 
 ## Backlog (engine phases, in order)
 
-- [ ] **Phase 11**: optional Redis `Store` adapter
+- [ ] (empty)
 
 ## Done
+
+- [x] **Phase 11 — Optional Redis `Store` adapter**
+  (verified: `go test -race ./...` all packages ok incl. new
+  `internal/store/redis` (1.04s); `internal/store/redis/redis_test.go` runs the full
+  `Store` round-trip against a real Redis 7 (`durable across restart`, `SetJobStatus`
+  moves jobs between per-status sets, `ErrNotFound` on missing, duplicate-create
+  rejection); live end-to-end run with `HARNESS_STORE=redis`: submitted a `triage`
+  job, polled it to `COMPLETED` with step results, then killed + restarted the
+  process and the session was still readable; `make fmt-check vet test build` +
+  smoke green.)
+  - `internal/store/store.go`: interface unchanged; SQLite stays the default
+  - `internal/store/redis`: `RedisStore` implementing `store.Store`, selected via
+    `HARNESS_STORE=sqlite|redis`; `HARNESS_REDIS_ADDR`/`HARNESS_REDIS_PASSWORD`/
+    `HARNESS_REDIS_DB`/`HARNESS_REDIS_PREFIX` config
+  - `internal/store/redis/client.go`: small stdlib-only RESP client with a pooled
+    connection, MULTI/EXEC transactions, and context deadlines (no new dependency)
+  - `cmd/harness`: `--store` flag + `openStore` backends (`--db` still used for SQLite)
+  - docs: README status/roadmap/feature, docs/DEPLOY env table + job-store section,
+    docs/ARCHITECTURE package row
 
 - [x] **Phase 10 — Docker + compose + GitOps deploy docs**
   (verified: `docker build --build-arg VERSION=0.1.0 -t j-harness:test .` succeeded;

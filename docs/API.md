@@ -182,6 +182,11 @@ Errors use a JSON envelope: `{"error":{"code":"...","message":"..."}}`.
 | `HARNESS_ADDR` | `127.0.0.1:8080` | listen address |
 | `HARNESS_REGISTRY` | `./agent-registry` | registry root |
 | `HARNESS_DB` | `./data/harness.db` | SQLite job database |
+| `HARNESS_STORE` | `sqlite` | job store backend: `sqlite` or `redis` |
+| `HARNESS_REDIS_ADDR` | `127.0.0.1:6379` | Redis address when `HARNESS_STORE=redis` |
+| `HARNESS_REDIS_PASSWORD` | empty | Redis `AUTH` password |
+| `HARNESS_REDIS_DB` | `0` | Redis logical database |
+| `HARNESS_REDIS_PREFIX` | `jh:` | Redis key namespace |
 | `HARNESS_WORKERS` | number of CPUs | worker pool size |
 | `HARNESS_RETRIES` | `3` | max LLM attempts per call (`1` disables retries) |
 | `HARNESS_AUTH_TOKEN` | empty | bearer token; required for `/v1/*` when set |

@@ -12,6 +12,15 @@ Append a new entry after any correction or postmortem. Newest first.
 - **Prevention rule:** what to do instead
 ```
 
+### 2026-09-24 — `pkill -f <pattern>` can match the invoking shell
+- **Failure mode:** a `pkill -f bin/harness` cleanup command hung, because the pattern also
+  matched the shell command line that was running `pkill` itself, which then tried to signal
+  the shell that was waiting for it.
+- **Detection signal:** the shell tool timed out on a trivial cleanup command; `pgrep -af` then
+  showed the matching line was the cleanup command itself.
+- **Prevention rule:** kill by PID (`kill $PID`) for processes started by the script, or match a
+  pattern that cannot appear in the pkill invocation; verify with `pgrep -af` before and after.
+
 ### 2026-09-24 — Registry writes must not mutate the live snapshot in place
 - **Failure mode:** Editing an agent through the HTTP CRUD API could swap registry fields
   (`Registry` internals) while a worker was mid-run, so an in-flight execution could observe a
