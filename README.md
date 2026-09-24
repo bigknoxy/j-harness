@@ -4,12 +4,14 @@ A lightweight, configuration-driven LLM agent harness in Go.
 
 Agents are defined by **Markdown prompts** (`.md`) and **JSON blueprints/pipelines**. The
 harness loads them, runs them against any **OpenAI-compatible endpoint** (OpenAI, Ollama,
-vLLM, llama.cpp server), and exposes an **async HTTP API** with status polling.
+vLLM, llama.cpp server), and exposes an HTTP API — synchronous today, with an async job
+queue (submit + status polling) landing in Phase 4.
 
 Single binary. Embedded SQLite. No external services required.
 
-> **Status: Phase 0 (bootstrap).** The roadmap below is the plan of record; see
-> [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
+> **Status: Phase 3 (sync HTTP API).** Registry, OpenAI-compatible LLM client, and
+> single-agent execution work end to end over `POST /v1/agents/{id}/execute`. Async jobs
+> arrive in Phase 4. See [`tasks/roadmap.md`](tasks/roadmap.md) for live progress and
 > [`tasks/todo.md`](tasks/todo.md) for the current work item.
 
 ## Why
@@ -55,11 +57,11 @@ output that later steps can reference. See [`docs/SCHEMA.md`](docs/SCHEMA.md).
 | Method | Path | Purpose |
 |---|---|---|
 | `GET`  | `/healthz` | liveness |
-| `POST` | `/v1/agents/{id}/execute` | run one agent (async) |
-| `POST` | `/v1/pipelines/{id}/execute` | run a pipeline (async) |
-| `GET`  | `/v1/sessions/{id}` | poll job status/result |
+| `GET`  | `/readyz` | readiness |
+| `POST` | `/v1/agents/{id}/execute` | run one agent (sync) |
 
-Full reference: [`docs/API.md`](docs/API.md).
+Planned: async job execution (`202` + session polling), pipelines, and registry CRUD — see
+the roadmap. Full reference: [`docs/API.md`](docs/API.md).
 
 ## Security
 
