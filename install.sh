@@ -96,7 +96,6 @@ curl -fsSL "https://codeload.github.com/${REPO}/tar.gz/refs/heads/${ref}" -o "$t
 mkdir -p "$tmp/src"
 tar -xzf "$tmp/src.tgz" -C "$tmp/src" --strip-components=1
 cp -R "$tmp/src/agent-registry/." "$REGISTRY_DIR/"
-[ -d "$tmp/src/schemas" ] && cp -R "$tmp/src/schemas" "$REGISTRY_DIR/../schemas" 2>/dev/null || true
 
 say ""
 say "installed:"

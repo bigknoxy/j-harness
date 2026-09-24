@@ -4,18 +4,17 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **Phase 6 — Parallel DAG (fan-out/fan-in)**
-  - [ ] dependency-aware scheduler: a step's predecessors must all finish first
-  - [ ] run independent branches concurrently (bounded by the worker pool)
-  - [ ] join step: declared predecessors gate execution; merge their outputs
-  - [ ] validation: reject cycles at load time
-  - [ ] tests + docs
+- [ ] **D8 — Dogfood: real runs via Ollama + NVIDIA NIM**
+  - [ ] run a single agent (`triage`) against Ollama `qwen3:8b`
+  - [ ] run the `support_flow` pipeline end-to-end against Ollama
+  - [ ] repeat against NVIDIA NIM (working model) to prove provider-agnosticism
+  - [ ] record results in `docs/MEMORY.md` / `tasks/lessons.md`
 
 ## Next action
 
-Add explicit step dependencies (`needs: [ids]`) to the schema, or derive them from
-template refs. Deriving from refs keeps blueprints terse; explicit `needs` is clearer for
-joins. Decide and record in `docs/MEMORY.md`.
+Boot `bin/harness` against Ollama (`OPENAI_BASE_URL=http://192.168.8.136:11434/v1`,
+model `qwen3:8b`), then submit a `triage` agent job and poll the session. Do not overload
+the homelab: run one job at a time.
 
 ## Blockers
 

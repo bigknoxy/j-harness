@@ -13,7 +13,6 @@ RUN apk --no-cache add ca-certificates && adduser -D -u 10001 harness
 WORKDIR /app
 COPY --from=builder /out/harness /usr/local/bin/harness
 COPY agent-registry ./agent-registry
-COPY schemas ./schemas
 RUN mkdir -p /app/data && chown -R harness:harness /app
 USER harness
 ENV HARNESS_ADDR=0.0.0.0:8080

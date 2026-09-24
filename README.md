@@ -76,6 +76,7 @@ agent-registry/
   blueprints/*.json   # which prompt, model, params, tools
   prompts/*.md        # system prompt / persona
   pipelines/*.json    # DAG of steps: agent steps + router steps
+  schemas/*.json      # optional JSON Schemas referenced by blueprints
 ```
 
 At runtime each pipeline step resolves its input via a strict template grammar

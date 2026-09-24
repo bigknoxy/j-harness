@@ -7,6 +7,12 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: JSON Schemas live inside the registry bundle (`agent-registry/schemas/`).**
+  Blueprints reference schemas with a path relative to the registry root
+  (`schemas/triage.json`), so the schema directory must sit **inside** `agent-registry/` for
+  the reference to resolve. It previously lived at the repo top level, which made a fetched
+  registry non-self-contained and caused `uninstall.sh` to leave an orphaned directory. The
+  registry is now one self-contained bundle that install/run/Docker/uninstall treat as a unit.
 - **2026-09-24: Delivery track — releases, installer, Pages, branch protection.**
   Versioned releases are cut by **GoReleaser** on `v*` tags (`.goreleaser.yaml` +
   `.github/workflows/release.yml`), publishing linux/darwin/windows amd64+arm64 archives,
@@ -17,7 +23,8 @@ reversed, add a new entry (do not delete the old one).
   `~/.config/j-harness/registry` (all overridable). The Pages site is now a hand-written
   `index.html` published verbatim by `gh-pages.yml` with `enable_jekyll: false`; `_config.yml`
   was deleted (Jekyll no longer processes the site). `main` is PR-only with required checks
-  `build-test`/`smoke`, linear history, and **admin bypass allowed** (`enforce_admins: false`)
+  `lint`, `test (ubuntu-latest, 1.27)`, `test (macos-latest, 1.27)`, `vuln`, and `smoke`,
+  linear history, and **admin bypass allowed** (`enforce_admins: false`)
   since the repo is single-maintainer. Rationale: stable download URLs, no Jekyll surprises,
   and a repo that reads professionally without AI tells.
 - **2026-09-24: Phase 5 (v1) — pipelines run sequentially; omitting `output` means "last step".**

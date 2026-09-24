@@ -116,6 +116,6 @@ A `router` step picks successors; each route has `when` or `default`:
 agent-registry/
 ├── blueprints/<id>.json
 ├── prompts/<id>.md
-└── pipelines/<id>.json
-schemas/<name>.json          # optional JSON Schemas referenced by blueprints
+├── pipelines/<id>.json
+└── schemas/<name>.json      # optional JSON Schemas referenced by blueprints
 ```
