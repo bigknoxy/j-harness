@@ -1,0 +1,12 @@
+{
+  "addr": "127.0.0.1:8080",
+  "registry_path": "./agent-registry",
+  "data_path": "./data/harness.db",
+  "workers": 2,
+  "default_base_url": "http://127.0.0.1:11434/v1",
+  "default_model": "llama3.2",
+  "request_timeout_seconds": 300,
+  "enable_tools": false,
+  "tool_allowlist": [],
+  "version": 1
+}

@@ -1,0 +1,12 @@
+{
+  "id": "generic_agent",
+  "description": "Draft a generic support reply.",
+  "prompt_path": "prompts/generic_agent.md",
+  "model": "llama3.2",
+  "temperature": 0.7,
+  "max_tokens": 512,
+  "timeout_seconds": 300,
+  "output_format": "text",
+  "tools": [],
+  "version": 1
+}
