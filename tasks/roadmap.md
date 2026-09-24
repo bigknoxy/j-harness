@@ -6,7 +6,7 @@ Live phase tracker. Update the Status column as phases complete. v1 ships at end
 |---|---|---|
 | 0 | Bootstrap: git, CI, docs, health endpoint, container | ✅ done |
 | 1 | `registry`: load/validate/atomic-write blueprints + prompts | ✅ done |
-| 2 | `llm.Client` + fake; single-agent execution | ⬜ todo |
+| 2 | `llm.Client` + fake; single-agent execution | ✅ done |
 | 3 | HTTP API (sync) + middleware (auth/logging/recovery) | ⬜ todo |
 | 4 | `store` (SQLite) + async jobs + bounded worker pool + orphan requeue | ⬜ todo |
 | 5 | Sequential pipeline (named IO) + template resolver — **v1** | ⬜ todo |
