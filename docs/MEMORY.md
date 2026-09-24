@@ -7,6 +7,18 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Phase 8 — tools are opt-in, allowlisted, and fail-closed.**
+  Function calling is disabled unless `ENABLE_TOOLS=true` is set, in which case the process
+  builds an `internal/tools.Registry` from a fixed set of built-in tools and hands it to the
+  `Engine`. There is no shell, filesystem, or arbitrary-network tool; the built-ins are pure
+  and side-effect-free (`current_time`, `word_count`, `math_eval`). A blueprint's `tools`
+  list is only a request: if tools are disabled, or a listed tool is not in the registry, the
+  run fails with a clear error rather than silently ignoring the list. Tool execution happens
+  in a bounded loop (at most `maxToolRounds` = 5 model turns); each round the model may call
+  tools, the engine executes them and appends `role:"tool"` messages, then re-asks. This keeps
+  a misbehaving model from looping forever and keeps the RCE surface at zero for the default
+  deployment (see the Phase 0 security gap: unauthenticated execution plus `run_bash`).
+
 - **2026-09-24: Phase 7 — registry CRUD writes reload the whole registry and hot-swap the engine snapshot.**
   `POST|PUT /v1/registry/{agents,pipelines}/{id}` validate the payload, call the existing
   `registry.WriteBlueprint`/`WritePipeline` (atomic temp-file + rename), then re-`Load` the

@@ -23,6 +23,7 @@ import (
 	"github.com/bigknoxy/j-harness/internal/llm"
 	"github.com/bigknoxy/j-harness/internal/registry"
 	"github.com/bigknoxy/j-harness/internal/store"
+	"github.com/bigknoxy/j-harness/internal/tools"
 )
 
 // version is overridable at build time with -ldflags "-X main.version=...".
@@ -66,6 +67,14 @@ func main() {
 	eng, err := engine.New(reg, client)
 	if err != nil {
 		log.Fatalf("init engine: %v", err)
+	}
+	if os.Getenv("ENABLE_TOOLS") == "true" {
+		toolReg, terr := tools.New("current_time", "word_count", "math_eval")
+		if terr != nil {
+			log.Fatalf("init tools: %v", terr)
+		}
+		eng.SetTools(toolReg)
+		log.Printf("tools enabled: %v", toolReg.Names())
 	}
 
 	pool, err := engine.NewPool(engine.PoolConfig{

@@ -15,6 +15,7 @@ import (
 	"github.com/bigknoxy/j-harness/internal/llm"
 	"github.com/bigknoxy/j-harness/internal/model"
 	"github.com/bigknoxy/j-harness/internal/registry"
+	"github.com/bigknoxy/j-harness/internal/tools"
 )
 
 // Engine runs agents and pipelines against an LLM backend.
@@ -23,7 +24,8 @@ type Engine struct {
 	client      llm.Client
 	maxParallel int
 
-	mu sync.RWMutex
+	mu           sync.RWMutex
+	toolsEnabled *tools.Registry
 }
 
 // New builds an Engine. Both arguments are required. Pipeline steps run
@@ -36,6 +38,21 @@ func New(reg *registry.Registry, client llm.Client) (*Engine, error) {
 		return nil, fmt.Errorf("engine: llm client is required")
 	}
 	return &Engine{registry: reg, client: client, maxParallel: runtime.GOMAXPROCS(0)}, nil
+}
+
+// SetTools enables function calling with the given allowlist. A nil registry
+// leaves tools disabled. Call once at startup.
+func (e *Engine) SetTools(reg *tools.Registry) {
+	e.mu.Lock()
+	e.toolsEnabled = reg
+	e.mu.Unlock()
+}
+
+// enabledTools returns the enabled tool allowlist, or nil when tools are off.
+func (e *Engine) enabledTools() *tools.Registry {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.toolsEnabled
 }
 
 // SetRegistry swaps the registry snapshot used by subsequent executions. It is
@@ -85,6 +102,11 @@ func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResu
 		defer cancel()
 	}
 
+	toolDefs, err := e.resolveTools(bp)
+	if err != nil {
+		return AgentResult{DurationMS: time.Since(start).Milliseconds()}, err
+	}
+
 	req := llm.Request{
 		Model:        bp.Model,
 		BaseURL:      bp.BaseURL,
@@ -92,10 +114,17 @@ func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResu
 		UserInput:    input,
 		Temperature:  bp.Temperature,
 		MaxTokens:    bp.MaxTokens,
-		JSONOutput:   bp.OutputFormat == model.OutputJSON,
+		JSONOutput:   bp.OutputFormat == model.OutputJSON && len(toolDefs) == 0,
+		Tools:        toolDefs,
 	}
 
-	resp, err := e.client.Complete(ctx, req)
+	var resp llm.Response
+	if len(toolDefs) > 0 {
+		req.Messages = buildToolMessages(prompt, input)
+		resp, err = e.completeWithTools(ctx, req)
+	} else {
+		resp, err = e.client.Complete(ctx, req)
+	}
 	if err != nil {
 		return AgentResult{DurationMS: time.Since(start).Milliseconds()}, err
 	}
