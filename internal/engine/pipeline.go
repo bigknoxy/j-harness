@@ -145,7 +145,6 @@ func (e *Engine) RunPipeline(ctx context.Context, pipelineID string, inputs map[
 					if _, ok := steps[gotoID]; !ok {
 						out = StepOutcome{StepID: step.ID, Status: string(model.StatusFailed),
 							Error: fmt.Sprintf("goto %q is not a step", gotoID)}
-						rerr = fmt.Errorf("goto %q is not a step", gotoID)
 					}
 				}
 				done <- completion{stepID: step.ID, out: out, gotoID: gotoID}
