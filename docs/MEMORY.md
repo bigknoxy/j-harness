@@ -41,6 +41,8 @@ reversed, add a new entry (do not delete the old one).
 - **2026-09-24 04:00: No new dependencies without a logged decision.** Default to the standard
   library and the existing stack. Rationale: keep the binary small and the supply chain minimal.
 
-- **2026-09-24 04:00: Public repo, Pages publishes the README.** `gh-pages.yml` uses
-  `peaceiris/actions-gh-pages@v3` to publish from repo root; `.nojekyll` committed. Rationale:
-  README is the landing page / source of truth (project rule).
+- **2026-09-24 04:02: Pages renders README via Jekyll, not raw publish.** `gh-pages.yml` uses
+  `peaceiris/actions-gh-pages@v3` to publish from repo root with a `_config.yml`
+  (`jekyll-theme-cayman`) and **no `.nojekyll`**. Rationale: a `.nojekyll` marker disables
+  Jekyll, so `README.md` is never rendered to `index.html` and the site 404s (observed). README
+  is the landing page / source of truth (project rule).
