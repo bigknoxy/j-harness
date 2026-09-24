@@ -1,8 +1,8 @@
 // Command harness runs the j-harness agent execution service.
 //
 // It loads the file-based agent registry, builds an OpenAI-compatible LLM client
-// from the environment, and serves the synchronous HTTP API (see docs/API.md).
-// Async job execution arrives in a later phase (see tasks/roadmap.md).
+// from the environment, and serves the async HTTP API backed by an embedded
+// SQLite store and a bounded worker pool (see docs/API.md).
 package main
 
 import (
@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -20,6 +22,7 @@ import (
 	"github.com/bigknoxy/j-harness/internal/engine"
 	"github.com/bigknoxy/j-harness/internal/llm"
 	"github.com/bigknoxy/j-harness/internal/registry"
+	"github.com/bigknoxy/j-harness/internal/store"
 )
 
 // version is overridable at build time with -ldflags "-X main.version=...".
@@ -28,6 +31,8 @@ var version = "0.0.0-dev"
 func main() {
 	addr := flag.String("addr", envOr("HARNESS_ADDR", "127.0.0.1:8080"), "HTTP listen address")
 	registryPath := flag.String("registry", envOr("HARNESS_REGISTRY", "./agent-registry"), "agent registry root directory")
+	dbPath := flag.String("db", envOr("HARNESS_DB", "./data/harness.db"), "SQLite database path")
+	workers := flag.Int("workers", envInt("HARNESS_WORKERS", runtime.NumCPU()), "number of worker goroutines")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -43,6 +48,13 @@ func main() {
 	log.Printf("registry %s: %d blueprint(s), %d pipeline(s)",
 		*registryPath, len(reg.BlueprintIDs()), len(reg.PipelineIDs()))
 
+	st, err := store.Open(*dbPath)
+	if err != nil {
+		log.Fatalf("open store %s: %v", *dbPath, err)
+	}
+	defer func() { _ = st.Close() }()
+	log.Printf("store %s: ready", *dbPath)
+
 	client, err := llm.NewOpenAI(llm.OpenAIConfig{
 		BaseURL: envOr("OPENAI_BASE_URL", "http://127.0.0.1:11434/v1"),
 		Model:   envOr("OPENAI_MODEL", ""),
@@ -56,9 +68,24 @@ func main() {
 		log.Fatalf("init engine: %v", err)
 	}
 
+	pool, err := engine.NewPool(engine.PoolConfig{
+		Store:   st,
+		Engine:  eng,
+		Workers: *workers,
+	})
+	if err != nil {
+		log.Fatalf("init worker pool: %v", err)
+	}
+	defer pool.Close()
+	if _, err := pool.RequeueOrphans(context.Background()); err != nil {
+		log.Printf("requeue orphaned jobs: %v", err)
+	}
+
 	handler, err := api.New(api.Config{
 		Engine:    eng,
 		Registry:  reg,
+		Pool:      pool,
+		Store:     st,
 		Version:   version,
 		AuthToken: os.Getenv("HARNESS_AUTH_TOKEN"), // env-only; never logged
 	})
@@ -95,4 +122,16 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func envInt(key string, fallback int) int {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 1 {
+		return fallback
+	}
+	return n
 }
