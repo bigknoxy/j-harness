@@ -1,0 +1,23 @@
+# Build artifacts
+bin/
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# VCS and CI
+.git/
+.github/
+
+# Local tooling and docs not needed in the image
+tasks/
+docs/
+scripts/
+.goreleaser.yaml
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Editor noise
+*.swp
+.DS_Store
