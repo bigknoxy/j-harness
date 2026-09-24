@@ -4,19 +4,12 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] **Phase 7 — Registry CRUD API**
-  - [ ] `POST`/`PUT /v1/registry/agents/{id}` (blueprint + prompt body)
-  - [ ] `POST`/`PUT /v1/registry/pipelines/{id}`
-  - [ ] `GET /v1/registry/{agents,pipelines}` (list) + `GET .../{id}` (detail)
-  - [ ] validate before write; reject invalid with the registry error
-  - [ ] live reload after write (rebuild the in-memory registry snapshot)
-  - [ ] auth-gated; tests + docs
+- [ ] **Phase 8 — Tools / function calling (gated)**
 
 ## Next action
 
-Reuse `registry.WriteBlueprint` / `WritePipeline` (they already validate + atomic-write),
-then hot-swap the engine's registry snapshot. Decide the reload strategy (whole-registry
-`Load` vs targeted upsert) and record it in `docs/MEMORY.md`.
+- Decide the tool schema and the gating model (`ENABLE_TOOLS` opt-in, per-deployment
+  allowlist, per-blueprint `tools` list) and record it in `docs/MEMORY.md` before coding.
 
 ## Blockers
 
@@ -30,6 +23,19 @@ None.
 - [ ] **Phase 11**: optional Redis `Store` adapter
 
 ## Done
+
+- [x] **Phase 7 — Registry CRUD API** (verified: `make fmt-check vet test build` passed;
+  smoke green; `internal/api/registry_test.go` covers list/get/create/update, id-mismatch
+  and invalid payload rejection, unknown-field rejection, 409 on duplicate create, 404 on
+  PUT-missing, pipeline CRUD, 405 + Allow, and auth-gating. `internal/engine/registry_swap_test.go`
+  covers snapshot swap + nil no-op.)
+  - `internal/api/registry.go`: `GET|POST|PUT /v1/registry/{agents,pipelines}[/{id}]`;
+    strict JSON bodies; create=409 on existing, update=404 on missing
+  - `internal/api/api.go`: writes go through `mutate` -> validate -> atomic write ->
+    whole-registry `Load` -> hot-swap API + engine snapshots (serialized by `mu`)
+  - `internal/engine/engine.go`: registry snapshot behind `sync.RWMutex` + `SetRegistry`;
+    `RunAgent`/`RunPipeline` read via `getRegistry` (in-flight runs keep their snapshot)
+  - docs/API.md: registry management section + `409` status code
 
 - [x] **Phase 6 — Parallel DAG fan-out/fan-in** (verified: `make fmt-check vet test build`
   passed; smoke green; `internal/pipeline/graph_test.go` covers refs/needs/router edges,

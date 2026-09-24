@@ -46,7 +46,7 @@ type StepOutcome struct {
 func (e *Engine) RunPipeline(ctx context.Context, pipelineID string, inputs map[string]string) (PipelineResult, error) {
 	start := time.Now()
 
-	p, ok := e.registry.Pipeline(pipelineID)
+	p, ok := e.getRegistry().Pipeline(pipelineID)
 	if !ok {
 		return PipelineResult{}, fmt.Errorf("engine: unknown pipeline %q", pipelineID)
 	}

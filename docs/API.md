@@ -88,6 +88,55 @@ On failure, `status` is `FAILED` and `error` carries the message.
 }
 ```
 
+## Registry management
+
+Agents and pipelines are managed as files on disk, but the same registry can be
+edited over HTTP. Writes validate before touching disk (a bad payload leaves the
+registry unchanged), persist atomically, then reload the registry and hot-swap
+the engine snapshot. In-flight jobs finish against the snapshot they started
+with; new jobs see the change immediately.
+
+All registry routes are under `/v1/registry/` and require the bearer token when
+`HARNESS_AUTH_TOKEN` is set (like every other `/v1/*` route).
+
+| Method + path | Purpose |
+|---|---|
+| `GET /v1/registry/agents` | list agents (id, description, model, output_format) |
+| `GET /v1/registry/agents/{id}` | read one agent (blueprint + prompt) |
+| `POST /v1/registry/agents/{id}` | create an agent (`409` if it already exists) |
+| `PUT /v1/registry/agents/{id}` | update an agent (`404` if it does not exist) |
+| `GET /v1/registry/pipelines` | list pipelines |
+| `GET /v1/registry/pipelines/{id}` | read one pipeline |
+| `POST /v1/registry/pipelines/{id}` | create a pipeline (`409` if it already exists) |
+| `PUT /v1/registry/pipelines/{id}` | update a pipeline (`404` if it does not exist) |
+
+Create/update an agent with `{"blueprint": {...}, "prompt": "..."}`. The
+blueprint `id` must match the path id. Create/update a pipeline with
+`{"pipeline": {...}}`; `pipeline_id` must match the path id.
+
+**200 OK**
+
+```json
+{ "status": "ok" }
+```
+
+Example: create an agent.
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/v1/registry/agents/scribe \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "blueprint": {
+      "id": "scribe",
+      "prompt_path": "prompts/scribe.md",
+      "model": "qwen3:8b",
+      "output_format": "text",
+      "version": 1
+    },
+    "prompt": "You summarize text into three bullet points."
+  }'
+```
+
 ## Health
 
 | Endpoint | Purpose |
@@ -105,6 +154,7 @@ On failure, `status` is `FAILED` and `error` carries the message.
 | `401` | missing or invalid bearer token |
 | `404` | unknown agent, pipeline, session, or route |
 | `405` | wrong method |
+| `409` | create conflict (agent/pipeline already exists) |
 | `500` | internal error |
 | `503` | queue full or dependency not ready |
 
@@ -113,5 +163,4 @@ Errors use a JSON envelope: `{"error":{"code":"...","message":"..."}}`.
 ## Planned (later phases)
 
 - `POST /v1/sessions/{id}/cancel`
-- `GET|POST|PUT|DELETE /v1/registry/{agents,pipelines}` — manage agents/pipelines over HTTP
 - `GET /metrics` — Prometheus metrics
