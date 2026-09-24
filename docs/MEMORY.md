@@ -7,6 +7,13 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-24: Pure-Go SQLite driver + Go 1.27 (current stable).** Phase 4 adds
+  `modernc.org/sqlite` (v1.59.0), a CGO-free SQLite so the existing `CGO_ENABLED=0`
+  static build and Alpine image keep working. This is the first third-party runtime
+  dependency; approved because the standard library has no SQL database and a pure-Go
+  driver avoids CGO/cross-compile pain. Toolchain, Dockerfile, and CI all track the
+  current stable Go (1.27.1) per user preference ("use current LTS").
+
 - **2026-09-24 04:10: Phase 3 ships the execute endpoint *synchronously*; async is Phase 4.**
   `POST /v1/agents/{id}/execute` blocks on `engine.RunAgent` and returns `200` with
   `{agent_id,output,tokens,duration_ms}` rather than the planned `202 {session_id}`. The

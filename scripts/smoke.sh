@@ -4,11 +4,12 @@ set -eu
 
 ADDR="${HARNESS_ADDR:-127.0.0.1:8081}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DB="$(mktemp -d)/harness.db"
 
 cd "$ROOT"
 make build
 
-./bin/harness --addr "$ADDR" &
+HARNESS_DB="$DB" ./bin/harness --addr "$ADDR" &
 PID=$!
 trap 'kill "$PID" 2>/dev/null || true' EXIT
 
@@ -21,4 +22,10 @@ until curl -sf "http://$ADDR/healthz" >/dev/null 2>&1; do
 done
 
 echo "/healthz -> $(curl -s "http://$ADDR/healthz")"
+echo "/readyz  -> $(curl -s "http://$ADDR/readyz")"
+
+# Unknown session should be a clean 404 (exercises the store path).
+code=$(curl -s -o /dev/null -w '%{http_code}' "http://$ADDR/v1/sessions/does-not-exist")
+[ "$code" = "404" ] || { echo "expected 404 for unknown session, got $code"; exit 1; }
+
 echo "smoke test passed"

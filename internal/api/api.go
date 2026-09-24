@@ -1,10 +1,12 @@
 // Package api exposes the harness over HTTP. It is deliberately thin: handlers
-// validate the request, invoke the engine, and render a JSON envelope. All
-// execution logic lives in internal/engine so the same code path can later be
-// driven by the async worker pool.
+// validate the request, enqueue (or look up) work, and render a JSON envelope.
+// All execution logic lives in internal/engine so the same code path is driven
+// by the async worker pool.
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,7 +16,9 @@ import (
 	"time"
 
 	"github.com/bigknoxy/j-harness/internal/engine"
+	"github.com/bigknoxy/j-harness/internal/model"
 	"github.com/bigknoxy/j-harness/internal/registry"
+	"github.com/bigknoxy/j-harness/internal/store"
 )
 
 // maxBodyBytes bounds request bodies to protect the 2-core host from abuse.
@@ -24,7 +28,11 @@ const maxBodyBytes = 1 << 20 // 1 MiB
 type Config struct {
 	Engine   *engine.Engine
 	Registry *registry.Registry
-	Version  string
+	// Pool executes submitted jobs asynchronously. Required.
+	Pool *engine.Pool
+	// Store is used to read job/step state (and readiness). Required.
+	Store   store.Store
+	Version string
 	// AuthToken, when non-empty, requires Authorization: Bearer <token> on
 	// every /v1/* request. /healthz and /readyz stay unauthenticated.
 	AuthToken string
@@ -36,6 +44,8 @@ type Config struct {
 type API struct {
 	engine   *engine.Engine
 	registry *registry.Registry
+	pool     *engine.Pool
+	store    store.Store
 	version  string
 	auth     string
 	logger   *log.Logger
@@ -49,6 +59,12 @@ func New(cfg Config) (*API, error) {
 	if cfg.Registry == nil {
 		return nil, errors.New("api: registry is required")
 	}
+	if cfg.Pool == nil {
+		return nil, errors.New("api: pool is required")
+	}
+	if cfg.Store == nil {
+		return nil, errors.New("api: store is required")
+	}
 	logger := cfg.Logger
 	if logger == nil {
 		logger = log.Default()
@@ -56,6 +72,8 @@ func New(cfg Config) (*API, error) {
 	return &API{
 		engine:   cfg.Engine,
 		registry: cfg.Registry,
+		pool:     cfg.Pool,
+		store:    cfg.Store,
 		version:  cfg.Version,
 		auth:     cfg.AuthToken,
 		logger:   logger,
@@ -71,6 +89,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/readyz", a.handleReadyz)
 
 	mux.HandleFunc("/v1/agents/", a.handleAgents)
+	mux.HandleFunc("/v1/sessions/", a.handleSessions)
 
 	return a.recoverer(a.logRequests(a.authenticate(mux)))
 }
@@ -117,15 +136,19 @@ func (a *API) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": a.version})
 }
 
-func (a *API) handleReadyz(w http.ResponseWriter, _ *http.Request) {
+func (a *API) handleReadyz(w http.ResponseWriter, r *http.Request) {
 	if a.registry == nil {
 		writeError(w, http.StatusServiceUnavailable, "not_ready", "registry not loaded")
+		return
+	}
+	if err := a.store.Ping(r.Context()); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "not_ready", "store unavailable")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
-// handleAgents routes /v1/agents/{id}/execute.
+// handleAgents routes POST /v1/agents/{id}/execute.
 func (a *API) handleAgents(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/v1/agents/")
 	id, action, ok := splitTwo(rest)
@@ -140,6 +163,8 @@ func (a *API) handleAgents(w http.ResponseWriter, r *http.Request) {
 	a.handleExecuteAgent(w, r, id)
 }
 
+// handleExecuteAgent validates the target, persists a PENDING job, enqueues it,
+// and returns 202 with the session id.
 func (a *API) handleExecuteAgent(w http.ResponseWriter, r *http.Request, agentID string) {
 	if _, ok := a.registry.Blueprint(agentID); !ok {
 		writeError(w, http.StatusNotFound, "not_found", "unknown agent "+agentID)
@@ -152,19 +177,98 @@ func (a *API) handleExecuteAgent(w http.ResponseWriter, r *http.Request, agentID
 		return
 	}
 
-	res, err := a.engine.RunAgent(r.Context(), agentID, req.InputData)
-	if err != nil {
-		a.logger.Printf("agent %s failed: %v", agentID, err)
-		writeError(w, http.StatusInternalServerError, "execution_failed", err.Error())
+	job := model.Job{
+		SessionID: newSessionID(),
+		Kind:      model.KindAgent,
+		TargetID:  agentID,
+		Status:    model.StatusPending,
+		Input:     req.InputData,
+	}
+	if err := a.pool.Submit(r.Context(), job); err != nil {
+		if errors.Is(err, engine.ErrQueueFull) {
+			writeError(w, http.StatusServiceUnavailable, "queue_full", "job queue is full, retry later")
+			return
+		}
+		a.logger.Printf("submit agent job %s: %v", agentID, err)
+		writeError(w, http.StatusInternalServerError, "submit_failed", err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, executeResponse{
-		AgentID:    res.AgentID,
-		Output:     res.Output,
-		Tokens:     res.Tokens,
-		DurationMS: res.DurationMS,
+	writeJSON(w, http.StatusAccepted, submitResponse{SessionID: job.SessionID, Status: string(model.StatusPending)})
+}
+
+// handleSessions routes GET /v1/sessions/{id} and GET /v1/sessions/{id}/steps.
+func (a *API) handleSessions(w http.ResponseWriter, r *http.Request) {
+	rest := strings.TrimPrefix(r.URL.Path, "/v1/sessions/")
+	if rest == "" {
+		writeError(w, http.StatusNotFound, "not_found", "unknown route")
+		return
+	}
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w, http.MethodGet)
+		return
+	}
+
+	// Either "{id}" or "{id}/steps".
+	if id, sub, ok := splitTwo(rest); ok {
+		if sub != "steps" {
+			writeError(w, http.StatusNotFound, "not_found", "unknown route")
+			return
+		}
+		a.handleSessionSteps(w, r, id)
+		return
+	}
+	a.handleSession(w, r, rest)
+}
+
+func (a *API) handleSession(w http.ResponseWriter, r *http.Request, sessionID string) {
+	job, err := a.store.GetJob(r.Context(), sessionID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "not_found", "unknown session "+sessionID)
+			return
+		}
+		a.logger.Printf("get session %s: %v", sessionID, err)
+		writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, sessionResponse{
+		SessionID: job.SessionID,
+		Kind:      string(job.Kind),
+		TargetID:  job.TargetID,
+		Status:    string(job.Status),
+		Result:    job.Result,
+		Error:     job.Error,
 	})
+}
+
+func (a *API) handleSessionSteps(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if _, err := a.store.GetJob(r.Context(), sessionID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "not_found", "unknown session "+sessionID)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	steps, err := a.store.ListStepResults(r.Context(), sessionID)
+	if err != nil {
+		a.logger.Printf("list steps %s: %v", sessionID, err)
+		writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	out := make([]stepResponse, 0, len(steps))
+	for _, s := range steps {
+		out = append(out, stepResponse{
+			StepID:     s.StepID,
+			Status:     s.Status,
+			Output:     s.Output,
+			Error:      s.Error,
+			Tokens:     s.Tokens,
+			DurationMS: s.DurationMS,
+		})
+	}
+	writeJSON(w, http.StatusOK, stepsEnvelope{SessionID: sessionID, Steps: out})
 }
 
 // --- request/response types ---
@@ -173,11 +277,32 @@ type executeRequest struct {
 	InputData string `json:"input_data"`
 }
 
-type executeResponse struct {
-	AgentID    string `json:"agent_id"`
-	Output     string `json:"output"`
-	Tokens     int    `json:"tokens"`
-	DurationMS int64  `json:"duration_ms"`
+type submitResponse struct {
+	SessionID string `json:"session_id"`
+	Status    string `json:"status"`
+}
+
+type sessionResponse struct {
+	SessionID string `json:"session_id"`
+	Kind      string `json:"kind"`
+	TargetID  string `json:"target_id"`
+	Status    string `json:"status"`
+	Result    string `json:"result,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+type stepResponse struct {
+	StepID     string `json:"step_id"`
+	Status     string `json:"status"`
+	Output     string `json:"output,omitempty"`
+	Error      string `json:"error,omitempty"`
+	Tokens     int    `json:"tokens,omitempty"`
+	DurationMS int64  `json:"duration_ms,omitempty"`
+}
+
+type stepsEnvelope struct {
+	SessionID string         `json:"session_id"`
+	Steps     []stepResponse `json:"steps"`
 }
 
 type errorBody struct {
@@ -213,6 +338,16 @@ func decodeExecuteRequest(w http.ResponseWriter, r *http.Request) (executeReques
 }
 
 // --- helpers ---
+
+// newSessionID returns a random, URL-safe session identifier.
+func newSessionID() string {
+	var b [12]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// crypto/rand should never fail; fall back to a time-based id.
+		return "sess_" + time.Now().UTC().Format("20060102T150405.000000000")
+	}
+	return "sess_" + hex.EncodeToString(b[:])
+}
 
 // splitTwo splits "a/b" into ("a","b"); more than one slash is not ok.
 func splitTwo(s string) (first, second string, ok bool) {
