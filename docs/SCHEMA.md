@@ -65,9 +65,14 @@ A DAG of steps. Steps have a **named output** that later steps reference.
     { "id": "generic_reply", "agent_id": "generic_agent",
       "input": "{{ inputs.user_input }}", "output": "reply" }
   ],
-  "output": "{{ steps.reply.output }}"
+  "output": "{{ steps.generic_reply.output }}"
 }
 ```
+
+> Note: `steps.<id>` is the **step id**, not the output name. Two steps may share an
+> output name (e.g. several branch replies), so a pipeline output that must capture "whichever
+> branch ran" should reference a merge/join step introduced with the router primitive
+> (Phase 6).
 
 ### Template grammar
 

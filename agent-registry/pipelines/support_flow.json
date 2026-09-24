@@ -38,5 +38,5 @@
       "output": "reply"
     }
   ],
-  "output": "{{ steps.reply.output }}"
+  "output": "{{ steps.generic_reply.output }}"
 }
