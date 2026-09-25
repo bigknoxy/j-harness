@@ -140,7 +140,9 @@ jobs:
   # pr-title enforces the Conventional Commits subject shape with the standard
   # action (SHA-pinned). It is a hard gate on every pull request; on a push it
   # has no title to check, so the job is skipped (a skipped job still reports a
-  # non-blocking, success-equivalent status, which is safe to require).
+  # non-blocking, success-equivalent status, which is safe to require). It needs
+  # only pull-requests: read: the action's optional `wip: true` mode also updates
+  # the PR status and would require write, but draft PRs already cover WIP.
   pr-title:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
@@ -169,7 +171,6 @@ jobs:
           subjectPatternError: |
             The subject "{subject}" in the pull request title "{title}" must be
             non-empty and start with a non-space character.
-          wip: true
 
   smoke:
     runs-on: ubuntu-latest
