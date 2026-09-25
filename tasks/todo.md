@@ -4,13 +4,13 @@ One `in_progress` item at a time. Update this file before moving on.
 
 ## In progress
 
-- [ ] (none — all phases complete)
+- [ ] (none: all phases complete)
 
 ## Next action
 
 - No engine phases remain. Optional follow-ups if ever wanted: streaming
   responses, a `POST /v1/sessions/{id}/cancel` endpoint, or per-tenant auth. Not
-  planned; add a new phase to `tasks/roadmap.md` first if picked up.
+  scheduled; add a new phase to `tasks/roadmap.md` first if picked up.
 
 ## Blockers
 
@@ -22,7 +22,7 @@ None.
 
 ## Done
 
-- [x] **Phase 11 — Optional Redis `Store` adapter**
+- [x] **Phase 11: Optional Redis `Store` adapter**
   (verified: `go test -race ./...` all packages ok incl. new
   `internal/store/redis` (1.04s); `internal/store/redis/redis_test.go` runs the full
   `Store` round-trip against a real Redis 7 (`durable across restart`, `SetJobStatus`
@@ -41,7 +41,7 @@ None.
   - docs: README status/roadmap/feature, docs/DEPLOY env table + job-store section,
     docs/ARCHITECTURE package row
 
-- [x] **Phase 10 — Docker + compose + GitOps deploy docs**
+- [x] **Phase 10: Docker + compose + GitOps deploy docs**
   (verified: `docker build --build-arg VERSION=0.1.0 -t j-harness:test .` succeeded;
   `docker run --rm j-harness:test --version` -> `j-harness 0.1.0`; booted container served
   `/healthz {"status":"ok","version":"0.1.0"}` and `/metrics` counters; image ~20MB.
@@ -54,7 +54,7 @@ None.
     "the registry is the deployment" model (promote by tag; baked vs mounted), operating
     notes (SQLite WAL backup, orphan requeue, `/metrics`, logs), hardening checklist
 
-- [x] **Phase 9 — Hardening (retries / backoff, output-schema validation, metrics)**
+- [x] **Phase 9: Hardening (retries / backoff, output-schema validation, metrics)**
   (verified: `make fmt-check vet test build` passed; smoke green incl. a `GET /metrics`
   assertion; `internal/schema/schema_test.go`, `internal/llm/retry_test.go`,
   `internal/metrics/metrics_test.go`, and extended `internal/engine/engine_test.go`
@@ -69,7 +69,7 @@ None.
   - docs: README/docs/API (health + counters + Environment tables)/docs/ARCHITECTURE
     (`## Hardening`)/docs/SCHEMA; tasks/lessons.md nil-receiver lesson
 
-- [x] **Phase 8 — Tools / function calling (gated)** (verified: `go build ./...` clean;
+- [x] **Phase 8: Tools / function calling (gated)** (verified: `go build ./...` clean;
   `gofmt -l internal cmd` empty; `go test -race ./...` all packages ok;
   `internal/tools/tools_test.go` covers the arithmetic evaluator + registry;
   `internal/engine/tools_test.go` covers tool round-trip, fail-closed when disabled,
@@ -84,7 +84,7 @@ None.
   - `cmd/harness`: `ENABLE_TOOLS=true` builds the allowlist and calls `eng.SetTools`
   - `agent-registry/blueprints/calculator.json` + prompt: checked-in tool example
 
-- [x] **Phase 7 — Registry CRUD API** (verified: `make fmt-check vet test build` passed;
+- [x] **Phase 7: Registry CRUD API** (verified: `make fmt-check vet test build` passed;
   smoke green; `internal/api/registry_test.go` covers list/get/create/update, id-mismatch
   and invalid payload rejection, unknown-field rejection, 409 on duplicate create, 404 on
   PUT-missing, pipeline CRUD, 405 + Allow, and auth-gating. `internal/engine/registry_swap_test.go`
@@ -97,7 +97,7 @@ None.
     `RunAgent`/`RunPipeline` read via `getRegistry` (in-flight runs keep their snapshot)
   - docs/API.md: registry management section + `409` status code
 
-- [x] **Phase 6 — Parallel DAG fan-out/fan-in** (verified: `make fmt-check vet test build`
+- [x] **Phase 6: Parallel DAG fan-out/fan-in** (verified: `make fmt-check vet test build`
   passed; smoke green; `internal/pipeline/graph_test.go` covers refs/needs/router edges,
   cycles, unknown refs. `internal/engine/dag_test.go` proves concurrent fan-out with a
   barrier client and stops on failure. Registry tests cover forward-ref-allowed + cycle reject.)
@@ -109,25 +109,25 @@ None.
   - `internal/registry`: forward refs allowed; cycles/unknown needs rejected
   - `agent-registry/pipelines/digest_flow.json`: fan-out (`summarize` + `assess_risk`) -> join
     (`combine` via `needs`)
-- [x] **D8 — Dogfood: real runs via a hosted OpenAI-compatible provider**
+- [x] **D8: Dogfood: real runs via a hosted OpenAI-compatible provider**
   (verified: ran the checked-in registry through the async API against NVIDIA NIM
   `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`. `triage` classified billing -> high and a
   crash -> technical; `support_flow` routed correctly to `billing_reply` / `tech_reply` with
   the other branches `SKIPPED`. Homelab Ollama was saturated, so it was not used. Notes in
   `docs/MEMORY.md`.)
-- [x] **Delivery track D1–D7** (branch protection, CI, GoReleaser releases, installer +
+- [x] **Delivery track D1-D7** (branch protection, CI, GoReleaser releases, installer +
   uninstaller, Pages site, repo polish, README badges). v0.1.0 release published with
   linux/darwin/windows amd64+arm64 assets; one-liner install/uninstall verified end to end.
-- [x] **Phase 0 — Bootstrap** (CI + Pages green; live at https://bigknoxy.github.io/j-harness/)
-- [x] **Phase 1 — Registry** (load/validate/atomic-write + tests)
-- [x] **Phase 2 — LLM client + single-agent execution**
-- [x] **Phase 3 — HTTP API (sync) + middleware**
-- [x] **Phase 4 — SQLite store + async jobs + bounded worker pool + orphan requeue**
+- [x] **Phase 0: Bootstrap** (CI + Pages green; live at https://bigknoxy.github.io/j-harness/)
+- [x] **Phase 1: Registry** (load/validate/atomic-write + tests)
+- [x] **Phase 2: LLM client + single-agent execution**
+- [x] **Phase 3: HTTP API (sync) + middleware**
+- [x] **Phase 4: SQLite store + async jobs + bounded worker pool + orphan requeue**
   (verified: `make fmt-check vet test build` passed; smoke green; store round-trip,
   worker lifecycle/requeue/queue-full, async API success/failure/auth/404/405 covered.
   Go toolchain/Dockerfile/CI now track current stable 1.27; pure-Go `modernc.org/sqlite`
   behind a `Store` interface. See `docs/MEMORY.md`.)
-- [x] **Phase 5 — Sequential pipeline + router (v1)** (verified: `make fmt-check vet test build`
+- [x] **Phase 5: Sequential pipeline + router (v1)** (verified: `make fmt-check vet test build`
   passed; smoke green; resolver/condition/router tests, engine pipeline tests, worker pipeline
   test, API pipeline submit + steps tests)
   - `internal/pipeline/resolve.go`: runtime `Resolve(scope)` for `{{ inputs.x }}` and
@@ -142,8 +142,9 @@ None.
 
 ## Notes / working memory
 
-- v1 = Phase 5 (sequential pipeline); Phase 6 adds DAG fan-out/fan-in.
-- State = embedded SQLite behind a `Store` interface (Redis is a later adapter, Phase 11).
+- v1 = Phase 5 (sequential pipeline); Phase 6 added DAG fan-out/fan-in.
+- State = embedded SQLite behind a `Store` interface by default; Redis is an opt-in
+  adapter (`HARNESS_STORE=redis`) shipped in Phase 11.
 - Worker pool is **bounded** (2-core host; local inference serializes); DAG fan-out is
   bounded by `GOMAXPROCS`.
 - Step dependencies come from `{{ steps.<id>.output }}` refs + explicit `needs` + router

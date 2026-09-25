@@ -171,9 +171,10 @@ Counters emitted on `/metrics`:
 
 Errors use a JSON envelope: `{"error":{"code":"...","message":"..."}}`.
 
-## Planned (later phases)
+## Not implemented
 
-- `POST /v1/sessions/{id}/cancel`
+- `POST /v1/sessions/{id}/cancel`. `CANCELED` exists as a job status, but there is no
+  cancel endpoint; it is an optional follow-up, not a scheduled phase.
 
 ## Environment
 

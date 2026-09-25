@@ -170,7 +170,26 @@ curl -fsSL https://raw.githubusercontent.com/bigknoxy/j-harness/main/install.sh 
       <div class="card">
         <h3>Boring state</h3>
         <p>Jobs and step results live in embedded SQLite with WAL. No broker, no daemon
-        to babysit. The store sits behind an interface.</p>
+        to babysit. Set <code>HARNESS_STORE=redis</code> for shared or restart-durable
+        state. The store sits behind an interface.</p>
+      </div>
+      <div class="card">
+        <h3>Gated tools</h3>
+        <p>Off by default. When <code>ENABLE_TOOLS=true</code>, agents can call a fixed,
+        side-effect-free allowlist: <code>current_time</code>, <code>word_count</code>,
+        <code>math_eval</code>. Unknown tools fail closed.</p>
+      </div>
+      <div class="card">
+        <h3>Hardened calls</h3>
+        <p>Transient LLM failures and <code>429</code>/<code>5xx</code> retry with backoff
+        and jitter. <code>json</code> outputs validate against a referenced JSON Schema,
+        with one repair turn on mismatch.</p>
+      </div>
+      <div class="card">
+        <h3>Registry as API</h3>
+        <p>Agents and pipelines are also edited over HTTP. Validated, atomic writes reload
+        the registry and hot-swap the engine snapshot. Create returns <code>409</code>,
+        update <code>404</code>.</p>
       </div>
     </div>
   </section>
@@ -182,10 +201,14 @@ curl -fsSL https://raw.githubusercontent.com/bigknoxy/j-harness/main/install.sh 
       <tbody>
         <tr><td><span class="method">GET</span></td><td><code>/healthz</code></td><td>liveness</td></tr>
         <tr><td><span class="method">GET</span></td><td><code>/readyz</code></td><td>readiness</td></tr>
+        <tr><td><span class="method">GET</span></td><td><code>/metrics</code></td><td>Prometheus text metrics</td></tr>
         <tr><td><span class="method">POST</span></td><td><code>/v1/agents/{id}/execute</code></td><td>submit an agent run, returns <code>202</code></td></tr>
         <tr><td><span class="method">POST</span></td><td><code>/v1/pipelines/{id}/execute</code></td><td>submit a pipeline run, returns <code>202</code></td></tr>
         <tr><td><span class="method">GET</span></td><td><code>/v1/sessions/{id}</code></td><td>poll status and result</td></tr>
         <tr><td><span class="method">GET</span></td><td><code>/v1/sessions/{id}/steps</code></td><td>per-step results</td></tr>
+        <tr><td><span class="method">GET</span></td><td><code>/v1/registry/{agents,pipelines}</code></td><td>list or read registry entries</td></tr>
+        <tr><td><span class="method">POST</span></td><td><code>/v1/registry/{agents,pipelines}/{id}</code></td><td>create an entry, returns <code>409</code> if present</td></tr>
+        <tr><td><span class="method">PUT</span></td><td><code>/v1/registry/{agents,pipelines}/{id}</code></td><td>update an entry, returns <code>404</code> if absent</td></tr>
       </tbody>
     </table>
     <pre style="margin-top:20px">SESSION=$(curl -s -X POST localhost:8080/v1/agents/generic_agent/execute \
@@ -198,11 +221,13 @@ curl -s localhost:8080/v1/sessions/$SESSION</pre>
   <section id="roadmap">
     <h2>Roadmap</h2>
     <p style="color:var(--muted);font-size:14px">
-      <span class="phase done">done</span> registry, engine, HTTP API, async jobs, pipelines
-      &nbsp; <span class="phase now">next</span> DAG fan-out, registry CRUD, tools
+      <span class="phase done">shipped</span> registry, engine, async jobs, pipelines and
+      DAG fan-out/fan-in, registry CRUD, gated tools, retries, schema validation, metrics,
+      Docker + GitOps, optional Redis store
     </p>
     <p style="color:var(--muted);font-size:13.5px;margin-top:16px">
-      Live progress: <a href="https://github.com/bigknoxy/j-harness/blob/main/tasks/roadmap.md">tasks/roadmap.md</a>.
+      All engine phases (0-11) are complete. Live progress:
+      <a href="https://github.com/bigknoxy/j-harness/blob/main/tasks/roadmap.md">tasks/roadmap.md</a>.
       Decisions and rationale: <a href="https://github.com/bigknoxy/j-harness/blob/main/docs/MEMORY.md">docs/MEMORY.md</a>.
     </p>
   </section>

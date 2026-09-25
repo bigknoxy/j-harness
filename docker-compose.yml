@@ -13,8 +13,9 @@ services:
       context: .
       args:
         VERSION: ${HARNESS_VERSION:-dev}
-    # Pin a released image instead of building, e.g.:
-    # image: ghcr.io/bigknoxy/j-harness:0.1.0
+    # Build from source. To pin a version, set VERSION:
+    #   HARNESS_VERSION=0.1.0 docker compose up --build
+    # To use a prebuilt image, replace `build:` with `image:`.
     ports:
       - "127.0.0.1:8080:8080"
     environment:

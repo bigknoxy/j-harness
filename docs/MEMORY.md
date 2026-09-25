@@ -1,4 +1,4 @@
-# Memory — decision log
+# Memory: decision log
 
 Architectural and product decisions, newest first. Format: `YYYY-MM-DD HH:MM: <summary>`.
 
@@ -7,7 +7,7 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
-- **2026-09-24: Phase 11 — Redis is an alternate `Store` behind the same interface, with a
+- **2026-09-24: Phase 11: Redis is an alternate `Store` behind the same interface, with a
   stdlib-only RESP client.**
   `store.Store` is unchanged; a new `internal/store/redis` package implements it for
   deployments that want job state to outlive a single container (or be shared across
@@ -22,7 +22,7 @@ reversed, add a new entry (do not delete the old one).
   `jh:sessions` set. A tiny mutex-guarded connection pool reuses sockets, redials on error,
   and honors context deadlines. Redis remains optional: nothing in the engine or API changed.
 
-- **2026-09-24: Phase 10 — the container is a thin wrapper; the registry is the deployment.**
+- **2026-09-24: Phase 10: the container is a thin wrapper; the registry is the deployment.**
   The image only packages the compiled binary plus the registry bundle (`agent-registry/`), so a
   deploy is really a registry change. Two documented rollout modes: bake the registry into the
   image at build time (immutable, promote by tag) or mount it read-only / manage it over the
@@ -31,26 +31,26 @@ reversed, add a new entry (do not delete the old one).
   on both harness (`/healthz`) and ollama, and `depends_on: service_healthy` so the harness does
   not start before the model server is reachable. `.dockerignore` keeps the build context small.
 
-- **2026-09-24: Phase 9 — retries live in a client decorator; schema errors get one repair turn.**
+- **2026-09-24: Phase 9: retries live in a client decorator; schema errors get one repair turn.**
   Retries wrap the `llm.Client` (`llm.NewRetry`), not the engine, so any code path that calls
   the model benefits and the engine stays a pure policy layer. Only transport failures and
-  HTTP 429/5xx are retried (exponential backoff with jitter, default 2 retries) — a 4xx like
+  HTTP 429/5xx are retried (exponential backoff with jitter, default 2 retries): a 4xx like
   400/401 is a caller bug and fails fast. Retry is off when `Retry.MaxAttempts <= 1`.
   Separately, when a blueprint has `output_schema`, the parsed JSON is validated against it;
   on mismatch the engine makes **one** repair turn (feeding the validation error back) before
   failing, mirroring the tool-loop bound. Output schemas are compiled at registry load so a
   malformed schema fails fast at startup, not on the first request.
-- **2026-09-24: Phase 9 — `internal/schema` is a deliberately small draft-07 subset.**
+- **2026-09-24: Phase 9: `internal/schema` is a deliberately small draft-07 subset.**
   Supports `type`, `required`, `properties`, `additionalProperties` (bool), `enum`,
   `minimum`/`maximum`, `minLength`/`maxLength`, `minItems`/`maxItems`, and `items`. That is
   enough for structured agent output; pulling a full JSON-Schema library was rejected to keep
   the dependency count at one (see the SQLite decision).
-- **2026-09-24: Phase 9 — metrics are in-process counters exposed on `/metrics`.**
+- **2026-09-24: Phase 9: metrics are in-process counters exposed on `/metrics`.**
   A tiny `internal/metrics` registry of atomic counters (submissions, completions, failures,
   retries, schema failures) rendered as Prometheus text. No Prometheus client dependency; the
   endpoint is unauthenticated like `/healthz` so scrapers work without a token.
 
-- **2026-09-24: Phase 8 — tools are opt-in, allowlisted, and fail-closed.**
+- **2026-09-24: Phase 8: tools are opt-in, allowlisted, and fail-closed.**
   Function calling is disabled unless `ENABLE_TOOLS=true` is set, in which case the process
   builds an `internal/tools.Registry` from a fixed set of built-in tools and hands it to the
   `Engine`. There is no shell, filesystem, or arbitrary-network tool; the built-ins are pure
@@ -62,7 +62,7 @@ reversed, add a new entry (do not delete the old one).
   a misbehaving model from looping forever and keeps the RCE surface at zero for the default
   deployment (see the Phase 0 security gap: unauthenticated execution plus `run_bash`).
 
-- **2026-09-24: Phase 7 — registry CRUD writes reload the whole registry and hot-swap the engine snapshot.**
+- **2026-09-24: Phase 7: registry CRUD writes reload the whole registry and hot-swap the engine snapshot.**
   `POST|PUT /v1/registry/{agents,pipelines}/{id}` validate the payload, call the existing
   `registry.WriteBlueprint`/`WritePipeline` (atomic temp-file + rename), then re-`Load` the
   entire registry root and swap the resulting snapshot into both the API and the `Engine`.
@@ -75,7 +75,7 @@ reversed, add a new entry (do not delete the old one).
   existing id, `PUT` returns `404` on a missing id; an invalid payload returns `400` and
   leaves the files untouched.
 
-- **2026-09-24: Phase 6 — dependencies are derived from refs, `needs`, and router edges.**
+- **2026-09-24: Phase 6: dependencies are derived from refs, `needs`, and router edges.**
   `Engine.RunPipeline` is a concurrent DAG scheduler. Step dependencies come from three
   sources, unioned: (a) `{{ steps.<id>.output }}` refs in a step's input, (b) an explicit
   `needs: [ids]` list on the step, and (c) a router's route `goto` targets. Deriving from refs
@@ -100,7 +100,7 @@ reversed, add a new entry (do not delete the old one).
   the reference to resolve. It previously lived at the repo top level, which made a fetched
   registry non-self-contained and caused `uninstall.sh` to leave an orphaned directory. The
   registry is now one self-contained bundle that install/run/Docker/uninstall treat as a unit.
-- **2026-09-24: Delivery track — releases, installer, Pages, branch protection.**
+- **2026-09-24: Delivery track: releases, installer, Pages, branch protection.**
   Versioned releases are cut by **GoReleaser** on `v*` tags (`.goreleaser.yaml` +
   `.github/workflows/release.yml`), publishing linux/darwin/windows amd64+arm64 archives,
   `checksums.txt`, and auto-generated notes to GitHub Releases. Archive names are
@@ -114,7 +114,7 @@ reversed, add a new entry (do not delete the old one).
   linear history, and **admin bypass allowed** (`enforce_admins: false`)
   since the repo is single-maintainer. Rationale: stable download URLs, no Jekyll surprises,
   and a repo that reads professionally without AI tells.
-- **2026-09-24: Phase 5 (v1) — pipelines run sequentially; omitting `output` means "last step".**
+- **2026-09-24: Phase 5 (v1): pipelines run sequentially; omitting `output` means "last step".**
   `Engine.RunPipeline` walks steps in declared order. Router steps select one successor and
   mark the other branch targets `SKIPPED` (recorded as step rows). Because a skipped branch's
   output never exists, `support_flow` **omits the top-level `output`**: with no `output`
@@ -139,7 +139,7 @@ reversed, add a new entry (do not delete the old one).
   end to end before the job queue exists; the async shape reuses the same `input_data` field
   and the same `output` string, so it is forward compatible.
 
-- **2026-09-24 04:10: API middleware order = recoverer → logging → auth → mux.** Panic
+- **2026-09-24 04:10: API middleware order = recoverer -> logging -> auth -> mux.** Panic
   recovery is outermost so a panic still produces a logged `500` envelope; auth only guards
   `/v1/*` and is skipped entirely when `HARNESS_AUTH_TOKEN` is unset, keeping `/healthz` and
   `/readyz` always reachable for probes. Request bodies are capped at 1 MiB and decoded with
@@ -166,7 +166,7 @@ reversed, add a new entry (do not delete the old one).
   explicit named inputs/outputs resolved via a strict, non-evaluating template grammar
   (`{{ inputs.x }}`, `{{ steps.<id>.output }}`). A dedicated `router` step selects the next
   step from labeled routes based on a condition DSL (`equals|not_equals|in|matches|exists`).
-  Rationale: supports sequential chains, fan-out/fan-in, and triage→route→respond without a
+  Rationale: supports sequential chains, fan-out/fan-in, and triage->route->respond without a
   special-case engine; a linear-only schema would force a rework at the first branch.
 
 - **2026-09-24 04:00: Async by default.** All executions return `202` + `session_id`; results
@@ -174,7 +174,7 @@ reversed, add a new entry (do not delete the old one).
   would otherwise time out synchronous HTTP requests.
 
 - **2026-09-24 04:00: Bounded worker pool, not goroutine-per-request.** Concurrency is capped
-  (default 1–2). Rationale: a 2-core host cannot parallelize local inference; unbounded
+  (default 1-2). Rationale: a 2-core host cannot parallelize local inference; unbounded
   goroutines would thrash CPU and memory.
 
 - **2026-09-24 04:00: Tools are off by default and treated as RCE.** `ENABLE_TOOLS=false`,

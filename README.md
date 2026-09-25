@@ -16,7 +16,7 @@ Single binary. Embedded SQLite. No external services required.
 
 > **Status: Phase 11 (all phases complete).** Single agents and pipelines (including parallel fan-out/fan-in DAGs) run end to end over an
 > async API (`POST .../execute` -> `202 {session_id}`, then `GET /v1/sessions/{id}`), the
-> registry can be created and updated over HTTP, and agents can call a small set of built-in
+> registry can be created, read, and updated over HTTP, and agents can call a small set of built-in
 > tools when `ENABLE_TOOLS=true`.
 > LLM calls retry transient failures with backoff, `json` outputs are validated against their
 > referenced JSON Schema (with one repair turn), and Prometheus metrics are exposed on
@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/bigknoxy/j-harness/main/install.sh 
 ```
 
 This drops the `harness` binary in `~/.local/bin` and a starter registry in
-`~/.config/j-harness/registry`. Pin a version with `VERSION=v1.0.0`, change the location
+`~/.config/j-harness/registry`. Pin a version with `VERSION=v0.1.0`, change the location
 with `PREFIX=/usr/local`.
 
 Uninstall:
@@ -56,8 +56,8 @@ make build            # -> bin/harness
 
 - **Prompts are data, not code.** Behavior lives in git-tracked `.md`/`.json` files, so
   non-developers can tune agents without touching Go.
-- **Composable.** Simple single agents today; stack them into DAG pipelines (with branching
-  routers) later. Same schema, no engine rewrite.
+- **Composable.** Compose single agents into DAG pipelines with branching routers and
+  parallel fan-out/fan-in. Same schema, no engine rewrite.
 - **Local-first.** Point it at local CPU models (Ollama/llama.cpp) or hosted OpenAI. One
   config field switches the endpoint.
 - **Runs anywhere.** One Go binary + SQLite. No Redis / message broker required to start.
@@ -101,14 +101,19 @@ output that later steps can reference. See [`docs/SCHEMA.md`](docs/SCHEMA.md).
 |---|---|---|
 | `GET`  | `/healthz` | liveness |
 | `GET`  | `/readyz` | readiness |
+| `GET`  | `/metrics` | Prometheus text metrics |
 | `POST` | `/v1/agents/{id}/execute` | submit one agent run -> `202 {session_id}` |
 | `POST` | `/v1/pipelines/{id}/execute` | submit a pipeline run -> `202 {session_id}` |
 | `GET`  | `/v1/sessions/{id}` | poll job status + result |
 | `GET`  | `/v1/sessions/{id}/steps` | per-step results |
 | `GET`  | `/v1/registry/agents` | list agents |
-| `POST` | `/v1/registry/agents/{id}` | create or update an agent |
+| `GET`  | `/v1/registry/agents/{id}` | read one agent |
+| `POST` | `/v1/registry/agents/{id}` | create an agent (`409` if it exists) |
+| `PUT`  | `/v1/registry/agents/{id}` | update an agent (`404` if absent) |
 | `GET`  | `/v1/registry/pipelines` | list pipelines |
-| `POST` | `/v1/registry/pipelines/{id}` | create or update a pipeline |
+| `GET`  | `/v1/registry/pipelines/{id}` | read one pipeline |
+| `POST` | `/v1/registry/pipelines/{id}` | create a pipeline (`409` if it exists) |
+| `PUT`  | `/v1/registry/pipelines/{id}` | update a pipeline (`404` if absent) |
 
 ```bash
 # submit
@@ -120,9 +125,9 @@ SESSION=$(curl -s -X POST localhost:8080/v1/agents/generic_agent/execute \
 curl -s localhost:8080/v1/sessions/$SESSION
 ```
 
-Agents and pipelines are edited over HTTP as validated, atomic writes to the
-same registry files. Tools arrive in a later phase. Full reference:
-[`docs/API.md`](docs/API.md).
+Agents and pipelines can also be edited over HTTP as validated, atomic writes to the
+same registry files. Tool calling is gated by `ENABLE_TOOLS` and limited to a fixed
+side-effect-free allowlist. Full reference: [`docs/API.md`](docs/API.md).
 
 ## Security
 
@@ -158,6 +163,8 @@ This service runs LLM-driven tool calls, so treat it as code you did not write.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - components and decisions.
 - [`docs/SCHEMA.md`](docs/SCHEMA.md) - blueprint/pipeline schema.
 - [`docs/API.md`](docs/API.md) - HTTP API reference.
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) - image build, compose, config, GitOps.
+- [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md) - index of every doc surface.
 - [`docs/MEMORY.md`](docs/MEMORY.md) - decision log.
 
 ## License

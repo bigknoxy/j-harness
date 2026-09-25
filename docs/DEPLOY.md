@@ -71,9 +71,11 @@ request against `agent-registry/`, reviewed like any other change.
 2. Every file is validated on load and on every write through the registry CRUD
    API. A malformed entry fails startup (or the HTTP write) with a clear error, so
    a bad merge is caught before it serves traffic.
-3. Promote by tagging. Pin the image to that tag in your deployment
-   (`image: ghcr.io/bigknoxy/j-harness:0.1.0`), or set the compose build arg
-   `VERSION` to match.
+3. Promote by tagging the source and building your image from that tag. Pass the
+   tag through the compose build arg `VERSION` (or `docker build --build-arg
+   VERSION=0.1.0`) so `harness --version` and `/healthz` identify the build. No
+   container registry is published by CI; build and push the image in your own
+   pipeline if you need one.
 
 Two ways to roll the registry forward:
 
