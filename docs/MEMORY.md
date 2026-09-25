@@ -7,6 +7,19 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-25: E2E and eval suites run offline against an in-process OpenAI-compatible
+  stub; case data lives in a checked-in JSON file.**
+  The README's central claim (any OpenAI-compatible endpoint works end to end) was only
+  tested through `llm.Fake`, which bypasses the real `internal/llm` client and the HTTP
+  layer. `internal/llmstub` is a test-only `httptest.Server` that speaks
+  `/v1/chat/completions`, so `internal/e2e` can drive the full stack (registry -> SQLite ->
+  engine -> worker pool -> `api.Handler()`) with the real OpenAI client and zero network or
+  model cost. Eval cases are data, not code: `internal/eval/cases.json` is embedded and
+  scored CORRECT/INCORRECT, which keeps the suite versioned and reviewable and avoids a new
+  dependency. Both run in the normal `go test ./...` gate (`make test`), so they are
+  required in CI without new workflow steps. The optional real-model replay is documented
+  but never runs in tests.
+
 - **2026-09-24: Phase 11: Redis is an alternate `Store` behind the same interface, with a
   stdlib-only RESP client.**
   `store.Store` is unchanged; a new `internal/store/redis` package implements it for

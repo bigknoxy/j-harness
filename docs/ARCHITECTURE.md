@@ -49,6 +49,9 @@ git-tracked files. Job state is embedded SQLite by default, with an optional Red
 | `internal/metrics` | in-process counters rendered as Prometheus text on `/metrics` |
 | `internal/store` | `Store` interface + SQLite and (optional) Redis implementations |
 | `internal/api` | HTTP handlers + middleware (auth, logging, recovery) |
+| `internal/llmstub` | test-only OpenAI-compatible `httptest` server (scripted responses) |
+| `internal/e2e` | real HTTP end-to-end tests over the full stack |
+| `internal/eval` | checked-in deterministic eval suite (`cases.json` + scorer) |
 
 ## Execution model
 
@@ -88,6 +91,20 @@ PENDING --> RUNNING --> COMPLETED
 ```
 
 On startup, jobs left in `RUNNING` (process died mid-flight) are requeued to `PENDING`.
+
+## Testing
+
+- **Unit/integration:** `go test -race ./...` (`make test`). The `llm.Fake` client keeps
+  engine and API tests deterministic.
+- **Real HTTP E2E:** `internal/e2e` stands up the full stack over `httptest.Server` (SQLite
+  temp store -> registry -> engine -> worker pool -> `api.Handler()`) and points the real
+  `llm.NewOpenAI` client at `internal/llmstub`, an offline OpenAI-compatible stub. It covers
+  agent execute + poll + steps, pipeline branch routing (billing vs technical), DAG
+  fan-out/fan-in, auth boundaries, registry CRUD over HTTP, metrics, and a concurrency smoke.
+  Run alone with `make e2e`.
+- **Evals:** `internal/eval` replays a versioned case set (`internal/eval/cases.json`)
+  against the same stub and scores each case CORRECT/INCORRECT, failing on any incorrect
+  case. Run alone with `make eval`; see `docs/EVALS.md`. No network or model server.
 
 ## Non-functional decisions
 
