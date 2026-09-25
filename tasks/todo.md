@@ -11,6 +11,9 @@ One `in_progress` item at a time. Update this file before moving on.
 - No engine phases remain. Optional follow-ups if ever wanted: streaming
   responses, a `POST /v1/sessions/{id}/cancel` endpoint, or per-tenant auth. Not
   scheduled; add a new phase to `tasks/roadmap.md` first if picked up.
+- Research follow-ups not yet done (from `docs/research/RECOMMENDATIONS.md`):
+  R6 golden wire-format files, nightly Ollama eval job, scheduled compose e2e,
+  CODEOWNERS. All optional, none blocking.
 
 ## Blockers
 
@@ -21,6 +24,32 @@ None.
 - [ ] (empty)
 
 ## Done
+
+- [x] **D10: CI hardening + security (dependabot, coverage gate, pinned actions)**
+  (verified: `gofmt -l .` empty; `go vet ./...` clean; `go test -race ./...` all
+  packages ok; `HARNESS_REDIS_ADDR=127.0.0.1:6379 sh scripts/coverage.sh` ->
+  `total coverage: 75.6%` / `coverage gate passed` against a live `redis:7-alpine`;
+  fail path with `COVERAGE_THRESHOLD=99` exits 1; all workflow + dependabot YAML
+  parsed by `yaml.safe_load`; no `@vN` action refs remain, every `uses:` is a
+  commit SHA.)
+  - `.github/workflows/ci.yml`: pinned `actions/checkout`/`actions/setup-go` to
+    commit SHAs, `persist-credentials: false`, top-level `concurrency` with
+    cancel-in-progress, pinned `staticcheck v0.8.1` / `govulncheck v1.8.0` (env
+    vars, no more `@latest`), new always-run `coverage` job with a `redis:7-alpine`
+    service container (health-checked) that runs `scripts/coverage.sh`, and a new
+    PR-only `dependency-review` job (`fail-on-severity: moderate`).
+  - `scripts/coverage.sh` (new): `go test -coverprofile` + `go tool cover`, integer
+    x10 comparison so `69.9` correctly fails a `70` threshold; `COVERAGE_THRESHOLD`
+    (default 70) and `COVERAGE_PROFILE` overridable.
+  - `.github/workflows/codeql.yml` (new): CodeQL Go analysis on push/PR/weekly,
+    `security-events: write` scoped to the job only.
+  - `.github/dependabot.yml` (new): weekly `gomod` and `github-actions` updates,
+    Conventional-Commit prefixes, minor/patch grouping.
+  - `release.yml` / `gh-pages.yml`: SHA-pinned actions, `persist-credentials: false`,
+    release concurrency (no cancel-in-progress), Pages concurrency.
+  - `Makefile`: `coverage` target.
+  - docs: `docs/DOCUMENTATION.md` workflow row, `docs/MEMORY.md` decision entry,
+    `tasks/roadmap.md` D10.
 
 - [x] **WS1: prior-art research on docs, e2e, evals, and quality gates** (verified:
   `docs/research/PRIOR-ART.md` (405 lines) and `docs/research/RECOMMENDATIONS.md`

@@ -7,6 +7,25 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-25: CI supply-chain hardening: actions pinned by commit SHA, tools pinned by
+  version, and security jobs added (Dependabot, dependency review, CodeQL).**
+  Every `uses:` is pinned to a 40-char commit SHA with the human tag in a trailing comment,
+  because a mutable tag can be repointed at malicious code (the tj-actions/changed-files
+  incident). `staticcheck` and `govulncheck` are pinned by version env var instead of
+  `@latest`: an unpinned tool release must not be able to break the gate, which golangci-lint
+  already did once (Go version ceiling). Checkout uses `persist-credentials: false` so the
+  GITHUB_TOKEN is not left in `.git/config` for later steps. Each workflow grants
+  least-privilege `permissions` at the top (usually `contents: read`); only `release` gets
+  `contents: write`, and only `codeql` gets `security-events: write` (scoped to the job). A
+  top-level `concurrency` group cancels superseded runs, except on release where
+  cancel-in-progress is false so an in-flight publish is never killed mid-upload.
+  Dependabot covers both `gomod` and `github-actions` weekly (grouped minor/patch) so the
+  pinned SHAs do not silently rot. The coverage gate runs against a live Redis service
+  container because the Redis `Store` adapter is a shipped feature that the default test
+  matrix otherwise skips when no server is reachable; without it, that code had no CI signal
+  at all. The Redis service plus coverage gate lifted total coverage from 68.4% to 75.6%;
+  the floor is 70% via `scripts/coverage.sh`, enforced in-repo with no coverage service.
+
 - **2026-09-25: Docs drift is enforced by a pure-Go test in `internal/docscheck`, not
   lychee/vale/markdownlint; the CI `docs` job is always-run and not path-filtered.**
   R2 recommended a link/prose linter plus a Go drift test. We implemented only the Go test:

@@ -11,11 +11,17 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: gh-pages
+  cancel-in-progress: true
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Stage site
         run: |
@@ -25,7 +31,7 @@ jobs:
           if [ -f LICENSE ]; then cp LICENSE _site/LICENSE; fi
 
       - name: Publish
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./_site

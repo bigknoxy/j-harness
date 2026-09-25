@@ -42,7 +42,9 @@ relative links. Run it locally with `make docs`.
 | `internal/eval/cases.json` | the checked-in eval cases and their expectations | a new regression case is needed, or an expectation changes |
 | `docs/EVALS.md` | how to run evals | the runner or case schema changes |
 | `install.sh` / `uninstall.sh` | install/uninstall behavior, overridable vars, help text | install layout, download URLs, or overridable vars change |
-| `.github/workflows/*.yml` | CI (lint/test/vuln/docs/pr-title/smoke), release (GoReleaser), Pages publish | jobs, triggers, Go version, or publish steps change |
+| `.github/workflows/*.yml` | CI (lint/test/coverage/vuln/dependency-review/docs/pr-title/smoke), release (GoReleaser), Pages publish, CodeQL | jobs, triggers, Go version, tool versions, or publish steps change |
+| `.github/dependabot.yml` | automated dependency + action-SHA updates | ecosystems, schedule, or grouping change |
+| `scripts/coverage.sh` | the coverage floor (statement coverage vs `COVERAGE_THRESHOLD`) | coverage rule, profile flags, or threshold change |
 | `.github/PULL_REQUEST_TEMPLATE.md` | the docs-checklist contract for every PR | the docs rule or verification steps change |
 | `.goreleaser.yaml` | release archive naming and build matrix | release artifacts or naming change |
 
@@ -50,7 +52,7 @@ relative links. Run it locally with `make docs`.
 
 When syncing docs, cross-check these shared facts against the code:
 
-- **Status:** phases 0-11 complete; release `v0.1.0`.
+- **Status:** phases 0-11 complete; release `v0.2.0`.
 - **Endpoints:** `GET /healthz`, `GET /readyz`, `GET /metrics` (unauthenticated);
   `POST /v1/agents/{id}/execute`, `POST /v1/pipelines/{id}/execute` -> `202 {session_id}`;
   `GET /v1/sessions/{id}`, `GET /v1/sessions/{id}/steps`;

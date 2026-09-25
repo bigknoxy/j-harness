@@ -1,0 +1,40 @@
+# Dependabot keeps two ecosystems current:
+#   - gomod: the single runtime dependency (modernc.org/sqlite) and its tree
+#   - github-actions: the pinned action SHAs get a PR when the tag moves
+# Commits use Conventional Commit subjects so the pr-title CI check accepts them
+# and so the changelog groups them correctly.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+    groups:
+      gomod-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
+    labels:
+      - dependencies
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch

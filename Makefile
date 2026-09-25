@@ -2,7 +2,7 @@ BINARY := harness
 PKG := ./...
 GOFLAGS := -trimpath
 
-.PHONY: all build run test vet fmt fmt-check lint tidy clean docker e2e eval docs
+.PHONY: all build run test vet fmt fmt-check lint tidy clean docker e2e eval docs coverage
 
 all: fmt-check vet test build
 
@@ -29,6 +29,12 @@ eval:
 # relative markdown links, version pin, and the ASCII-only rule. Offline.
 docs:
 	go test $(GOFLAGS) ./internal/docscheck/...
+
+# coverage runs the suite with a coverage profile and enforces the statement
+# floor from scripts/coverage.sh (COVERAGE_THRESHOLD, default 70). Set
+# HARNESS_REDIS_ADDR to a live server to include the Redis store tests.
+coverage:
+	sh scripts/coverage.sh
 
 vet:
 	go vet $(PKG)

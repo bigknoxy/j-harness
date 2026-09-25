@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/bigknoxy/j-harness/main/install.sh 
 ```
 
 This drops the `harness` binary in `~/.local/bin` and a starter registry in
-`~/.config/j-harness/registry`. Pin a version with `VERSION=v0.1.0`, change the location
+`~/.config/j-harness/registry`. Pin a version with `VERSION=v0.2.0`, change the location
 with `PREFIX=/usr/local`.
 
 Uninstall:

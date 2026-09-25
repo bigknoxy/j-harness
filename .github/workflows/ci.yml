@@ -6,15 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege by default. Individual jobs raise it only if they must.
 permissions:
   contents: read
+
+# One run per ref: a new push cancels the previous, in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.27"
           cache: true
@@ -25,8 +33,10 @@ jobs:
       - name: go vet
         run: go vet ./...
       - name: staticcheck
+        env:
+          STATICCHECK_VERSION: v0.8.1
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}
           staticcheck ./...
 
   test:
@@ -37,8 +47,10 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         go: ["1.27"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ matrix.go }}
           cache: true
@@ -47,18 +59,65 @@ jobs:
       - name: test
         run: go test -race ./...
 
+  # coverage runs the whole suite against a live Redis so the optional store
+  # backend is exercised (the plain test matrix skips it when no server is
+  # reachable). It also enforces the statement-coverage floor from
+  # scripts/coverage.sh. Always runs, never path-filtered.
+  coverage:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      HARNESS_REDIS_ADDR: 127.0.0.1:6379
+      COVERAGE_THRESHOLD: "70"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.27"
+          cache: true
+      - name: coverage gate
+        run: sh scripts/coverage.sh
+
   vuln:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.27"
           cache: true
       - name: govulncheck
+        env:
+          GOVULNCHECK_VERSION: v1.8.0
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
           govulncheck ./...
+
+  # dependency-review fails a PR that introduces a dependency with a known
+  # vulnerability or a disallowed license. PR-only by nature.
+  dependency-review:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
+        with:
+          fail-on-severity: moderate
 
   # docs is intentionally NOT path-filtered: branch protection requires a check
   # by name, so a docs-only PR must still see this job run and report. It is a
@@ -68,8 +127,10 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.27"
           cache: true
@@ -103,8 +164,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, test]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.27"
           cache: true
