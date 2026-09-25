@@ -69,5 +69,8 @@ curl -s localhost:8080/v1/agents/triage/execute \
 # poll GET /v1/sessions/{session_id} until COMPLETED
 ```
 
-This is a manual/nightly exercise (see R3 in `docs/research/RECOMMENDATIONS.md`);
-it is intentionally not wired into required CI, to control cost and flakiness.
+This is a manual/nightly exercise (see R3 in `docs/research/RECOMMENDATIONS.md`).
+It is wired into the scheduled (non-required) [`nightly`](../.github/workflows/nightly.yml)
+workflow as `scripts/eval_live.sh`, which replays the billing and technical triage cases
+against the real model. The job skips, not fails, when no `NVIDIA_API_KEY` secret is set, so
+it is never a cost or flakiness gate on a PR.

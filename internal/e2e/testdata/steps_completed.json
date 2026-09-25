@@ -1,0 +1,11 @@
+{
+  "session_id": "sess_FIXED",
+  "steps": [
+    {
+      "output": "{\"category\":\"billing\",\"priority\":\"high\"}",
+      "status": "COMPLETED",
+      "step_id": "triage",
+      "tokens": 2
+    }
+  ]
+}

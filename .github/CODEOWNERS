@@ -1,0 +1,14 @@
+# CODEOWNERS
+#
+# Single-maintainer repo: every path is owned by the maintainer, so a future
+# collaborator's PR automatically requests review from @bigknoxy.
+#
+# https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+*       @bigknoxy
+
+# The registry and the schema it depends on are the deploy artifact; treat them
+# as reviewed surfaces.
+/agent-registry/   @bigknoxy
+/docs/             @bigknoxy
+/.github/          @bigknoxy

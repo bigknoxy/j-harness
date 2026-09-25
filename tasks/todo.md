@@ -11,9 +11,9 @@ One `in_progress` item at a time. Update this file before moving on.
 - No engine phases remain. Optional follow-ups if ever wanted: streaming
   responses, a `POST /v1/sessions/{id}/cancel` endpoint, or per-tenant auth. Not
   scheduled; add a new phase to `tasks/roadmap.md` first if picked up.
-- Research follow-ups not yet done (from `docs/research/RECOMMENDATIONS.md`):
-  R6 golden wire-format files, nightly Ollama eval job, scheduled compose e2e,
-  CODEOWNERS. All optional, none blocking.
+- All research follow-ups from `docs/research/RECOMMENDATIONS.md` that we chose to
+  take are done (R1-R7; R8 versioned docs site deferred). See D10 and D11 in
+  `tasks/roadmap.md`.
 
 ## Blockers
 
@@ -24,6 +24,31 @@ None.
 - [ ] (empty)
 
 ## Done
+
+- [x] **D11: research follow-ups (golden wire tests, CODEOWNERS, semantic PR title,
+  scheduled container + real-model checks)** (verified: `go test ./internal/e2e/ -run TestGolden` 6/6 pass and `UPDATE_GOLDEN=1` regeneration round-trips;
+  `sh scripts/container_e2e.sh` prints `container e2e passed` against a real
+  `j-harness:e2e` image with the stub on a shared Docker network; `sh -n` on both
+  scripts, `python3 ast.parse` on `stub_llm.py`, `yaml.safe_load` on
+  `.github/workflows/ci.yml` + `nightly.yml`; `gofmt -l .` empty; `go vet ./...`
+  clean; full gate `make fmt-check vet test build` green.)
+  - `internal/e2e/golden_test.go` + `internal/e2e/testdata/*.json` (new): 6 golden
+    files pin the exact submit/session/steps/skipped-steps/error wire shapes;
+    `session_id` replaced with a placeholder and volatile `duration_ms` (an
+    `omitempty` field) dropped; regenerate with `UPDATE_GOLDEN=1`.
+  - `.github/CODEOWNERS` (new): `* @bigknoxy` plus registry/docs/.github paths.
+  - `.github/workflows/ci.yml`: `pr-title` now uses the pinned
+    `amannn/action-semantic-pull-request` action (PR-only) instead of a shell regex.
+  - `scripts/container_e2e.sh` (new, rewritten): builds the image and drives the
+    async API over real HTTP; the stub runs as a container on a private Docker
+    network because a host firewall drops container-to-host traffic.
+  - `scripts/stub_llm.py` (new): stdlib OpenAI-compatible stub.
+  - `scripts/eval_live.sh` (new): replays billing/technical triage cases against a
+    real model.
+  - `.github/workflows/nightly.yml` (new): scheduled container E2E + real-model
+    eval (skips without `NVIDIA_API_KEY`); deliberately not a required check.
+  - docs: `README.md` testing section, `docs/EVALS.md`, `docs/DOCUMENTATION.md`
+    (new rows + scheduled note), `docs/MEMORY.md` decision entry, `tasks/roadmap.md` D11.
 
 - [x] **D10: CI hardening + security (dependabot, coverage gate, pinned actions)**
   (verified: `gofmt -l .` empty; `go vet ./...` clean; `go test -race ./...` all

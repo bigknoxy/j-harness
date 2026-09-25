@@ -38,13 +38,18 @@ relative links. Run it locally with `make docs`.
 | `Dockerfile` | image build stages, runtime user, stamped version | base images, build args, or runtime layout change |
 | `scripts/smoke.sh` | post-build smoke assertions (`/healthz`, `/readyz`, `/metrics`, 404 path) | a smoke-critical endpoint is added or changes |
 | `internal/e2e` | real HTTP end-to-end coverage over the full stack | an endpoint, job lifecycle, routing, auth, or registry-write behavior changes |
+| `internal/e2e/testdata` | golden files pinning the exact session/step/error wire format | the JSON shape of any API response changes (regenerate with `UPDATE_GOLDEN=1`) |
 | `internal/docscheck` | the offline docs drift gate: routes, env vars, metrics, version pin, links, ASCII | add or change a check, or an allowlisted exception |
 | `internal/eval/cases.json` | the checked-in eval cases and their expectations | a new regression case is needed, or an expectation changes |
 | `docs/EVALS.md` | how to run evals | the runner or case schema changes |
 | `install.sh` / `uninstall.sh` | install/uninstall behavior, overridable vars, help text | install layout, download URLs, or overridable vars change |
 | `.github/workflows/*.yml` | CI (lint/test/coverage/vuln/dependency-review/docs/pr-title/smoke), release (GoReleaser), Pages publish, CodeQL | jobs, triggers, Go version, tool versions, or publish steps change |
 | `.github/dependabot.yml` | automated dependency + action-SHA updates | ecosystems, schedule, or grouping change |
+| `.github/CODEOWNERS` | code ownership / automatic review requests | ownership or path rules change |
 | `scripts/coverage.sh` | the coverage floor (statement coverage vs `COVERAGE_THRESHOLD`) | coverage rule, profile flags, or threshold change |
+| `scripts/container_e2e.sh` / `scripts/stub_llm.py` | scheduled container E2E (build image, run it, drive the async API over real HTTP) | the container topology, stub behavior, or the API exercised changes |
+| `scripts/eval_live.sh` | scheduled real-model eval replay | the cases replayed or their run wiring change |
+| `.github/workflows/nightly.yml` | the scheduled (non-required) container + real-model checks | the schedule, secrets/vars, or the scripts they call change |
 | `.github/PULL_REQUEST_TEMPLATE.md` | the docs-checklist contract for every PR | the docs rule or verification steps change |
 | `.goreleaser.yaml` | release archive naming and build matrix | release artifacts or naming change |
 
@@ -64,8 +69,10 @@ When syncing docs, cross-check these shared facts against the code:
 - **Registry contents:** blueprints `triage`, `generic_agent`, `summarizer`,
   `risk_assessor`, `calculator`; pipelines `support_flow`, `digest_flow`; schema
   `schemas/triage.json`.
-- **Makefile gate:** `make fmt-check vet test build`; `make e2e`, `make eval`, and
-  `make docs` run the HTTP end-to-end, eval, and docs-drift suites alone.
+- **Makefile gate:** `make fmt-check vet test build`; `make e2e`, `make eval`, `make docs`,
+  and `make coverage` run the HTTP end-to-end, eval, docs-drift, and coverage checks alone.
+- **Scheduled (not required):** `.github/workflows/nightly.yml` runs `scripts/container_e2e.sh`
+  (Docker image + real HTTP) and `scripts/eval_live.sh` (real model, skipped without a key).
 - **Style:** ASCII only in docs, no em-dashes, no emojis, no AI tells.
 
 ## Automated drift check
