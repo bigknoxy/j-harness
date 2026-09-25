@@ -7,6 +7,20 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-25: Docs drift is enforced by a pure-Go test in `internal/docscheck`, not
+  lychee/vale/markdownlint; the CI `docs` job is always-run and not path-filtered.**
+  R2 recommended a link/prose linter plus a Go drift test. We implemented only the Go test:
+  it has no dependency, no network, and it checks the facts that actually drift for a
+  single-binary project (routes, env vars, metrics counters, version pin, relative links,
+  ASCII-only). lychee/vale/markdownlint would catch broken links and style but add CI-only
+  tooling, version pinning, and network flakiness for little marginal safety; the relative
+  link and ASCII checks cover the parts that matter offline. The `docs` job is deliberately
+  not path-filtered because branch protection requires status checks by name: a docs-only
+  PR whose `docs` job never ran would wait forever on a required check. Always-run keeps the
+  check truthful for every PR. The Conventional Commits `pr-title` job is likewise
+  always-run-on-PR and left unrequired until proven stable. A PR template carries the
+  "docs updated or no docs impact" checkbox; the test makes the rule mechanical.
+
 - **2026-09-25: E2E and eval suites run offline against an in-process OpenAI-compatible
   stub; case data lives in a checked-in JSON file.**
   The README's central claim (any OpenAI-compatible endpoint works end to end) was only

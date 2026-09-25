@@ -4,6 +4,19 @@ Single index of every documentation surface in this repo: what it is the source 
 for, and which code changes require it to be updated. Use this when reviewing a diff for
 docs drift.
 
+## Hard rule: every PR updates docs or states no impact
+
+Documentation is not optional after a change. Every pull request must either:
+
+1. update the doc surfaces this change affects (the map below says which), or
+2. check "no docs impact" in the PR template and say why in one line.
+
+This is enforced by CI. The always-run `docs` job (see `.github/workflows/ci.yml`)
+executes the pure-Go drift test in `internal/docscheck`, which fails when the code and the
+docs disagree about routes, environment variables, metrics counters, the version pin, or
+relative links. Run it locally with `make docs`.
+
+
 ## Surfaces
 
 | Surface | Source of truth for | Update when |
@@ -25,10 +38,12 @@ docs drift.
 | `Dockerfile` | image build stages, runtime user, stamped version | base images, build args, or runtime layout change |
 | `scripts/smoke.sh` | post-build smoke assertions (`/healthz`, `/readyz`, `/metrics`, 404 path) | a smoke-critical endpoint is added or changes |
 | `internal/e2e` | real HTTP end-to-end coverage over the full stack | an endpoint, job lifecycle, routing, auth, or registry-write behavior changes |
+| `internal/docscheck` | the offline docs drift gate: routes, env vars, metrics, version pin, links, ASCII | add or change a check, or an allowlisted exception |
 | `internal/eval/cases.json` | the checked-in eval cases and their expectations | a new regression case is needed, or an expectation changes |
 | `docs/EVALS.md` | how to run evals | the runner or case schema changes |
 | `install.sh` / `uninstall.sh` | install/uninstall behavior, overridable vars, help text | install layout, download URLs, or overridable vars change |
-| `.github/workflows/*.yml` | CI (lint/test/vuln/smoke), release (GoReleaser), Pages publish | jobs, triggers, Go version, or publish steps change |
+| `.github/workflows/*.yml` | CI (lint/test/vuln/docs/pr-title/smoke), release (GoReleaser), Pages publish | jobs, triggers, Go version, or publish steps change |
+| `.github/PULL_REQUEST_TEMPLATE.md` | the docs-checklist contract for every PR | the docs rule or verification steps change |
 | `.goreleaser.yaml` | release archive naming and build matrix | release artifacts or naming change |
 
 ## Consistency checklist
@@ -47,11 +62,29 @@ When syncing docs, cross-check these shared facts against the code:
 - **Registry contents:** blueprints `triage`, `generic_agent`, `summarizer`,
   `risk_assessor`, `calculator`; pipelines `support_flow`, `digest_flow`; schema
   `schemas/triage.json`.
-- **Makefile gate:** `make fmt-check vet test build`; `make e2e` and `make eval` run the
-  HTTP end-to-end and eval suites alone.
+- **Makefile gate:** `make fmt-check vet test build`; `make e2e`, `make eval`, and
+  `make docs` run the HTTP end-to-end, eval, and docs-drift suites alone.
 - **Style:** ASCII only in docs, no em-dashes, no emojis, no AI tells.
 
-## Drift check
+## Automated drift check
+
+`internal/docscheck` (run by `make docs` and the CI `docs` job) parses the code and the
+docs and fails on any mismatch:
+
+- **Routes:** every route registered in `internal/api` must appear in `README.md` and
+  `docs/API.md`, and neither may list a route that no longer exists.
+- **Env vars:** every variable read in Go source must appear in the `docs/API.md` or
+  `docs/DEPLOY.md` environment tables, and neither may document a variable nothing reads.
+- **Metrics:** every counter in `internal/metrics` must appear in the `docs/API.md`
+  counters table, and vice versa.
+- **Version:** the `VERSION=` pin in `README.md` must match the one in `docs/DEPLOY.md`.
+- **Links:** every relative markdown link must resolve to a real file (and `#anchor` to a
+  real heading).
+- **ASCII:** no non-ASCII bytes in any markdown surface or `index.html`.
+
+The test needs no network and no dependency, and it fails (never skips) on drift.
+
+## Manual drift sweep
 
 A quick sweep for stale language before merging a docs change:
 

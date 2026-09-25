@@ -24,6 +24,8 @@ Job status is one of `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELED`.
 
 ## Submit an agent
 
+`POST /v1/agents/{id}/execute`
+
 ```bash
 curl -s -X POST http://127.0.0.1:8080/v1/agents/generic_agent/execute \
   -H "Content-Type: application/json" \
@@ -38,6 +40,8 @@ curl -s -X POST http://127.0.0.1:8080/v1/agents/generic_agent/execute \
 ```
 
 ## Submit a pipeline
+
+`POST /v1/pipelines/{id}/execute`
 
 The body is a JSON object mapping each declared pipeline input to a string.
 
