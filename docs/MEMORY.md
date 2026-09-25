@@ -7,6 +7,19 @@ reversed, add a new entry (do not delete the old one).
 
 ---
 
+- **2026-09-25: Action majors updated and Dependabot grouped so subpath actions never
+  fragment.**
+  All pinned actions moved to their current majors: `actions/checkout` v7, `actions/setup-go`
+  v7, `github/codeql-action` v4, `goreleaser/goreleaser-action` v7. The CodeQL bump was the
+  reason this was done by hand instead of merging the Dependabot PRs: `github/codeql-action`
+  ships `init`, `autobuild`, and `analyze` as separate subpath packages, Dependabot treats each
+  as its own dependency, and it had opened separate PRs for `init` and `analyze` while leaving
+  `autobuild` on the old major. CodeQL requires all its steps at the same version, so any single
+  merge would have left the workflow in an unsupported mixed-version state (and the PRs also
+  lagged the current `v4.38.2`). `dependabot.yml` now groups `github/codeql-action*` into one PR
+  and every remaining action into a second group, so a future week of bumps arrives as two
+  reviewable PRs rather than many unmergeable ones.
+
 - **2026-09-25: Golden wire-format files (R6), CODEOWNERS + real semantic PR-title action,
   and a scheduled container/real-model workflow (R3/R7).**
   `internal/e2e/testdata` holds canonical JSON for the submit/session/steps/error responses,
