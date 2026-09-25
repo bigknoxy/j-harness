@@ -31,5 +31,6 @@ Live phase tracker. Engine phases 0-11 are all complete. v1 shipped at end of Ph
 | D6 | Repo homepage URL -> Pages; topics + description | done |
 | D7 | README badges (build, release, Go version, license) | done |
 | D8 | Dogfood: run real agents/pipelines via a hosted provider | done |
+| D9 | Docs drift gate (`internal/docscheck` + always-run `docs` CI job), PR template, Conventional Commits title job | done |
 
 Legend: `todo` | `in progress` | `done` | `blocked`.

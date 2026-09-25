@@ -22,6 +22,29 @@ None.
 
 ## Done
 
+- [x] **WS4 / R2+R4+R5: docs drift gate enforced on every PR** (verified:
+  `go test ./internal/docscheck/...` 6 tests pass; deliberately corrupted README/API
+  fixtures each fail with a file-naming diff message (stale route, missing route, stale
+  env var, non-ASCII rune); `gofmt -l .` empty; `go vet ./...` clean;
+  `go test -race ./...` all packages ok; `make fmt-check vet test` green;
+  `make docs` green; CI YAML parsed by `yaml.safe_load`.)
+  - `internal/docscheck/docscheck.go`: pure-Go, stdlib-only parsers for source routes
+    (mux patterns + route comments), documented routes, env vars, metrics counters,
+    version pins, and relative markdown links (with heading anchors), plus a heading
+    `Slugify`; no network, no dependency
+  - `internal/docscheck/docscheck_test.go`: six deterministic tests - routes in
+    README+API (both directions), env vars in API+DEPLOY (both directions), metrics in
+    API (both directions), README/DEPLOY version pin agreement, relative-link/anchor
+    resolution, ASCII-only docs
+  - `.github/workflows/ci.yml`: new always-run, non-path-filtered `docs` job
+    (`go test ./internal/docscheck/...`) on push+PR; new `pr-title` Conventional
+    Commits job on PR; existing lint/test/vuln/smoke untouched
+  - `.github/PULL_REQUEST_TEMPLATE.md`: docs checklist that references the docs map
+  - `Makefile`: `make docs` target
+  - docs: DOCUMENTATION.md hard rule + automated drift-check section + package row;
+    README testing section + local usage; MEMORY.md decision entry (pure Go vs
+    lychee/vale/markdownlint; always-run job); roadmap D9
+
 - [x] **R1/R3/R6: real HTTP e2e suite + deterministic eval suite** (verified:
   `gofmt -l .` empty; `go vet ./...` clean; `go test -race ./...` all packages ok
   incl. new `internal/e2e` (7 tests, ~1.4s) and `internal/eval` (9 cases, all

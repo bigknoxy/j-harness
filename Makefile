@@ -2,7 +2,7 @@ BINARY := harness
 PKG := ./...
 GOFLAGS := -trimpath
 
-.PHONY: all build run test vet fmt fmt-check lint tidy clean docker e2e eval
+.PHONY: all build run test vet fmt fmt-check lint tidy clean docker e2e eval docs
 
 all: fmt-check vet test build
 
@@ -24,6 +24,11 @@ e2e:
 # eval runs the checked-in deterministic eval suite (no network, no model).
 eval:
 	go test $(GOFLAGS) -race ./internal/eval/...
+
+# docs is the pure-Go drift gate: routes/env vars/metrics in code vs docs,
+# relative markdown links, version pin, and the ASCII-only rule. Offline.
+docs:
+	go test $(GOFLAGS) ./internal/docscheck/...
 
 vet:
 	go vet $(PKG)

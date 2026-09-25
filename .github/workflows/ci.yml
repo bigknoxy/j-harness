@@ -60,6 +60,45 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
 
+  # docs is intentionally NOT path-filtered: branch protection requires a check
+  # by name, so a docs-only PR must still see this job run and report. It is a
+  # pure-Go, offline drift gate (no network, no new dependency): routes, env
+  # vars, and metrics in code vs docs, relative markdown links, version pin,
+  # and the ASCII-only docs rule. See internal/docscheck.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+          cache: true
+      - name: docs drift
+        run: go test ./internal/docscheck/...
+
+  # pr-title enforces the Conventional Commits subject shape (CI-only, shell
+  # only, no third-party action). It runs on every push and PR and always
+  # reports (a push has no PR title, so it exits green), which keeps it safe to
+  # make required later without deadlocking docs-only PRs.
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -eu
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "not a pull request ($EVENT); nothing to check"
+            exit 0
+          fi
+          printf 'PR title: %s\n' "$TITLE"
+          if ! printf '%s' "$TITLE" | grep -Eq '^(feat|fix|docs|test|ci|chore|refactor|perf|build|style|revert)(\([a-z0-9._/-]+\))?!?: .+'; then
+            echo "::error::PR title must be a Conventional Commit, e.g. 'ci: enforce documentation drift checks on every PR'"
+            exit 1
+          fi
+
   smoke:
     runs-on: ubuntu-latest
     needs: [lint, test]

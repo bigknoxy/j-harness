@@ -150,7 +150,12 @@ client at an in-process, scripted OpenAI-compatible stub.
 make test    # go test -race ./... (unit + integration + e2e + evals)
 make e2e     # real HTTP end-to-end suite (full stack over httptest.Server)
 make eval    # deterministic eval suite, scored CORRECT/INCORRECT
+make docs    # offline docs-drift gate: routes/env/metrics vs docs, links, ASCII
 ```
+
+Docs are enforced, not implied: `make docs` (also the CI `docs` job) compares code with the
+documented surface and fails on drift. Every PR must update the docs it touches or say
+"no docs impact" in the PR template; see [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md).
 
 - [`internal/e2e`](internal/e2e) drives registry -> SQLite store -> engine -> worker pool ->
   `api.Handler()` over real HTTP, covering agent execute/poll/steps, pipeline branch routing,
