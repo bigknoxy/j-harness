@@ -1,0 +1,64 @@
+# Nightly: exercise a real model and the shipped container.
+#
+# Required CI is offline and deterministic. This scheduled workflow adds the two
+# checks the research flagged as "nightly/optional" so cost and flakiness never
+# gate a PR:
+#   - e2e-container: build the Docker image and drive it over real HTTP against a
+#     local OpenAI-compatible stub (scripts/container_e2e.sh).
+#   - eval-live: replay the agent eval suite against a real OpenAI-compatible
+#     model. It is skipped, not failed, when no credentials secret is configured,
+#     so a fork or a repo without secrets stays green.
+#
+# Configure repository secrets NVIDIA_API_KEY (and optionally NVIDIA_BASE_URL /
+# NVIDIA_MODEL) to enable eval-live.
+
+name: Nightly
+
+on:
+  schedule:
+    - cron: "13 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  e2e-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: container e2e
+        run: sh scripts/container_e2e.sh
+
+  eval-live:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      OPENAI_BASE_URL: ${{ vars.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1' }}
+      OPENAI_MODEL: ${{ vars.NVIDIA_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.27"
+          cache: true
+      - name: configure
+        id: cfg
+        run: |
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "no NVIDIA_API_KEY secret; skipping live eval"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: replay eval cases against the real model
+        if: steps.cfg.outputs.enabled == 'true'
+        run: sh scripts/eval_live.sh

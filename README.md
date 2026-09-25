@@ -147,10 +147,11 @@ Everything runs offline with no model server: tests and evals point the real Ope
 client at an in-process, scripted OpenAI-compatible stub.
 
 ```bash
-make test    # go test -race ./... (unit + integration + e2e + evals)
-make e2e     # real HTTP end-to-end suite (full stack over httptest.Server)
-make eval    # deterministic eval suite, scored CORRECT/INCORRECT
-make docs    # offline docs-drift gate: routes/env/metrics vs docs, links, ASCII
+make test       # go test -race ./... (unit + integration + e2e + evals)
+make e2e        # real HTTP end-to-end suite (full stack over httptest.Server)
+make eval       # deterministic eval suite, scored CORRECT/INCORRECT
+make docs       # offline docs-drift gate: routes/env/metrics vs docs, links, ASCII
+make coverage   # statement coverage against COVERAGE_THRESHOLD (default 70)
 ```
 
 Docs are enforced, not implied: `make docs` (also the CI `docs` job) compares code with the
@@ -159,9 +160,17 @@ documented surface and fails on drift. Every PR must update the docs it touches 
 
 - [`internal/e2e`](internal/e2e) drives registry -> SQLite store -> engine -> worker pool ->
   `api.Handler()` over real HTTP, covering agent execute/poll/steps, pipeline branch routing,
-  DAG fan-out/fan-in, auth boundaries, registry CRUD, metrics, and concurrency.
+  DAG fan-out/fan-in, auth boundaries, registry CRUD, metrics, and concurrency. Golden files
+  in `internal/e2e/testdata` pin the exact session/step wire format; regenerate with
+  `UPDATE_GOLDEN=1 go test ./internal/e2e/ -run TestGolden`.
 - [`internal/eval`](internal/eval) replays [`cases.json`](internal/eval/cases.json) and fails
   if any case is incorrect. See [`docs/EVALS.md`](docs/EVALS.md).
+
+Two checks are scheduled rather than required, so cost and flakiness never gate a PR: the
+[`nightly`](.github/workflows/nightly.yml) workflow builds the Docker image and drives it over
+real HTTP against a stub (`scripts/container_e2e.sh`), and replays the eval cases against a
+real model when an `NVIDIA_API_KEY` secret is configured (`scripts/eval_live.sh`). It is
+skipped, not failed, when no key is set.
 
 ## Roadmap
 

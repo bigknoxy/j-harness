@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "not_found",
+    "message": "unknown session sess_does_not_exist"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "session_id": "sess_FIXED",
+  "steps": [
+    {
+      "output": "{\"category\":\"billing\",\"priority\":\"high\"}",
+      "status": "COMPLETED",
+      "step_id": "triage",
+      "tokens": 2
+    },
+    {
+      "status": "COMPLETED",
+      "step_id": "route"
+    },
+    {
+      "output": "support reply",
+      "status": "COMPLETED",
+      "step_id": "billing_reply",
+      "tokens": 2
+    },
+    {
+      "status": "SKIPPED",
+      "step_id": "tech_reply"
+    },
+    {
+      "status": "SKIPPED",
+      "step_id": "generic_reply"
+    }
+  ]
+}

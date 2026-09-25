@@ -12,6 +12,27 @@ Append a new entry after any correction or postmortem. Newest first.
 - **Prevention rule:** what to do instead
 ```
 
+### 2026-09-25: Do not golden-file `omitempty` fields, and never reach a host service from a container through the host
+- **Failure mode:** two independent flakes. (1) `internal/e2e` golden files normalized
+  `duration_ms` to `0`, but the field is `omitempty`: sub-millisecond calls omit the key
+  entirely while slower ones include it, so the golden failed intermittently under `-race`
+  even though the wire contract was unchanged. (2) `scripts/container_e2e.sh` bound the LLM
+  stub on the host and pointed the container at `host.docker.internal` via
+  `--add-host=...:host-gateway`; the host runs UFW/nftables with `INPUT policy DROP`, so the
+  container's request was silently dropped and the job sat in `RUNNING` until the script's
+  poll deadline.
+- **Detection signal:** (1) `make test` failed in `TestGoldenStepsCompleted` /
+  `TestGoldenPipelineSkippedSteps` with a diff whose only delta was the `duration_ms` key,
+  and passed on re-run. (2) `docker exec <ctr> wget http://host.docker.internal:<port>/healthz`
+  hung, while `iptables -L INPUT` showed policy `DROP`; the same symptom occurred for the
+  bridge gateway IP `172.17.0.1`.
+- **Prevention rule:** golden files should drop volatile fields entirely rather than
+  normalize their values when the field is `omitempty` (presence, not just value, is
+  observable). For container E2E, put the dependency service on the *same Docker network*
+  and address it by container name over Docker DNS; container-to-container avoids the host
+  firewall and `host-gateway` support entirely. A container E2E must also print
+  `docker logs` on failure so a stuck `RUNNING` job is diagnosable, not just a timeout.
+
 ### 2026-09-25: Per-blueprint tool allowlist must be enforced at call time, not just at resolve time
 - **Failure mode:** `resolveTools` checked each blueprint's `tools` list against the global
   enabled registry and advertised only those to the model, but `runTool` looked the called name

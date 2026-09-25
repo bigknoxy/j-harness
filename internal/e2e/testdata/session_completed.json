@@ -1,0 +1,7 @@
+{
+  "kind": "agent",
+  "result": "{\"category\":\"billing\",\"priority\":\"high\"}",
+  "session_id": "sess_FIXED",
+  "status": "COMPLETED",
+  "target_id": "triage"
+}
