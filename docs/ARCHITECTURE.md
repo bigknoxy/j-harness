@@ -3,35 +3,36 @@
 ## Overview
 
 `j-harness` is a single Go binary that loads agent definitions from disk, executes them
-against an OpenAI-compatible endpoint, and exposes an async HTTP API. There are no external
-services in v1: configuration is git-tracked files and job state is embedded SQLite.
+against an OpenAI-compatible endpoint, and exposes an async HTTP API. Configuration is
+git-tracked files. Job state is embedded SQLite by default, with an optional Redis backend
+(`HARNESS_STORE=redis`) for shared or restart-durable state.
 
 ```
-                 ┌──────────────────────────────────────────────┐
-   HTTP client   │                  api (net/http)              │
-   ────────────► │  POST /v1/{agents,pipelines}/{id}/execute    │
-                 │  GET  /v1/sessions/{id}                       │
-                 └───────────────┬──────────────────────────────┘
-                                 │ enqueue job
-                                 ▼
-                 ┌──────────────────────────────┐     ┌───────────────────┐
-                 │        engine                │◄───►│  store (SQLite)   │
-                 │  bounded worker pool         │     │ jobs, step_results│
-                 │  job lifecycle / requeue     │     └───────────────────┘
-                 └───────────┬──────────────────┘
-                             │ run step(s)
-                             ▼
-                 ┌──────────────────────────────┐     ┌───────────────────┐
-                 │        pipeline              │────►│  registry (files) │
-                 │  DAG, template resolver,     │     │ blueprints/*.json │
-                 │  router conditions           │     │ prompts/*.md      │
-                 └───────────┬──────────────────┘     │ pipelines/*.json  │
-                             │ llm request            └───────────────────┘
-                             ▼
-                 ┌──────────────────────────────┐
-                 │   llm (OpenAI-compatible)    │
-                 │   OpenAI / Ollama / vLLM     │
-                 └──────────────────────────────┘
+                 +----------------------------------------------+
+   HTTP client   |                  api (net/http)              |
+   ------------> |  POST /v1/{agents,pipelines}/{id}/execute    |
+                 |  GET  /v1/sessions/{id}                       |
+                 +---------------+------------------------------+
+                                 | enqueue job
+                                 v
+                 +------------------------------+     +-------------------+
+                 |        engine                |<--->|  store            |
+                 |  bounded worker pool         |     | SQLite (default)  |
+                 |  job lifecycle / requeue     |     | Redis (optional)  |
+                 +-----------+------------------+     +-------------------+
+                             | run step(s)
+                             v
+                 +------------------------------+     +-------------------+
+                 |        pipeline              |---->|  registry (files) |
+                 |  DAG, template resolver,     |     | blueprints/*.json |
+                 |  router conditions           |     | prompts/*.md      |
+                 +-----------+------------------+     | pipelines/*.json  |
+                             | llm request            +-------------------+
+                             v
+                 +------------------------------+
+                 |   llm (OpenAI-compatible)    |
+                 |   OpenAI / Ollama / vLLM     |
+                 +------------------------------+
 ```
 
 ## Packages
@@ -54,11 +55,11 @@ services in v1: configuration is git-tracked files and job state is embedded SQL
 1. A client `POST`s to a `/execute` endpoint. The handler validates the target exists, writes
    a `Job` (`PENDING`) to the store, enqueues it, and returns `202 {session_id}`.
 2. A worker dequeues the job, marks it `RUNNING`, and executes steps:
-   - **agent step:** resolve input template → load blueprint + prompt → call `llm.Client` →
+   - **agent step:** resolve input template -> load blueprint + prompt -> call `llm.Client` ->
      persist named output + a `StepResult` (timing/tokens/status). If the blueprint lists
      tools (and `ENABLE_TOOLS=true`), the engine runs a bounded tool-calling loop (at most
      `maxToolRounds` model turns), feeding tool results back as `role: "tool"` messages.
-   - **router step:** evaluate route conditions against the resolved input → select next step(s).
+   - **router step:** evaluate route conditions against the resolved input -> select next step(s).
    - **fan-out/fan-in:** steps with multiple successors run in parallel; a join step waits for
      all declared predecessors.
 3. On success the job becomes `COMPLETED`; on error `FAILED` (with a message). Clients poll
@@ -80,23 +81,25 @@ services in v1: configuration is git-tracked files and job state is embedded SQL
 ## Job state machine
 
 ```
-PENDING ──► RUNNING ──► COMPLETED
-                │
-                ├────► FAILED
-                └────► CANCELED
+PENDING --> RUNNING --> COMPLETED
+                |
+                +----> FAILED
+                +----> CANCELED
 ```
 
 On startup, jobs left in `RUNNING` (process died mid-flight) are requeued to `PENDING`.
 
 ## Non-functional decisions
 
-- **Concurrency:** bounded worker pool (default 1–2) because the target host has 2 cores and
-  local inference serializes. See `docs/MEMORY.md`.
-- **Persistence:** SQLite in WAL mode; the `Store` interface isolates the engine from storage.
+- **Concurrency:** bounded worker pool (default = CPU count) because the target host has 2
+  cores and local inference serializes. See `docs/MEMORY.md`.
+- **Persistence:** SQLite in WAL mode by default; `HARNESS_STORE=redis` selects a Redis
+  backend for shared or restart-durable state. The `Store` interface isolates the engine
+  from storage.
 - **Security:** default bind `127.0.0.1`, bearer-token auth when exposed, tools gated by
   `ENABLE_TOOLS` and a fixed, side-effect-free built-in allowlist (`current_time`,
   `word_count`, `math_eval`). A blueprint that requests an unknown tool, or any tool while
   tools are disabled, fails closed. No shell, filesystem, or arbitrary-network tool exists.
   Registry IDs are sanitized.
 - **Observability:** per-step `StepResult` rows; structured logging; `/healthz` + `/readyz`;
-  metrics endpoint planned (Phase 9).
+  in-process counters rendered as Prometheus text on `/metrics`.

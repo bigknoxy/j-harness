@@ -3,7 +3,7 @@
 Agent behavior is data: Markdown prompts + JSON blueprints/pipelines. All JSON files carry a
 `version` field and are validated on load (and on every write via the registry CRUD API).
 
-## Blueprint — `agent-registry/blueprints/<id>.json`
+## Blueprint - `agent-registry/blueprints/<id>.json`
 
 Defines one agent: which prompt to load, which model/params, and (optionally) tools.
 
@@ -38,7 +38,7 @@ Defines one agent: which prompt to load, which model/params, and (optionally) to
 | `tools` | []string | built-in tool names; only honored when `ENABLE_TOOLS=true`. Built-ins: `current_time`, `word_count`, `math_eval`. Unknown names are rejected on load |
 | `version` | int | schema version (currently `1`) |
 
-## Pipeline — `agent-registry/pipelines/<id>.json`
+## Pipeline - `agent-registry/pipelines/<id>.json`
 
 A DAG of steps. Steps have a **named output** that later steps reference.
 
@@ -109,9 +109,9 @@ outputs, then merges them. Cycles are rejected at load time.
 
 Strict, non-evaluating, validated at load time:
 
-- `{{ inputs.<name> }}` — a pipeline input
-- `{{ steps.<id>.output }}` — a step's named output
-- `{{ steps.<id>.output.<json.path> }}` — a JSON path into a step output
+- `{{ inputs.<name> }}` - a pipeline input
+- `{{ steps.<id>.output }}` - a step's named output
+- `{{ steps.<id>.output.<json.path> }}` - a JSON path into a step output
 
 Anything else is a load error. No shell, no expressions, no function calls.
 
@@ -128,14 +128,14 @@ A `router` step picks successors; each route has `when` or `default`:
 
 `field` is a JSON path into the router step's resolved input.
 
-## Job / session (runtime, stored in SQLite)
+## Job / session (runtime, stored in SQLite or Redis)
 
 | Field | Meaning |
 |---|---|
 | `session_id` | UUID returned by `/execute` |
 | `kind` | `agent` or `pipeline` |
 | `target_id` | agent or pipeline id |
-| `status` | `PENDING` · `RUNNING` · `COMPLETED` · `FAILED` · `CANCELED` |
+| `status` | `PENDING` - `RUNNING` - `COMPLETED` - `FAILED` - `CANCELED` |
 | `input` | initial input payload |
 | `result` | final output (on success) |
 | `error` | failure message (on failure) |
@@ -145,8 +145,8 @@ A `router` step picks successors; each route has `when` or `default`:
 
 ```
 agent-registry/
-├── blueprints/<id>.json
-├── prompts/<id>.md
-├── pipelines/<id>.json
-└── schemas/<name>.json      # optional JSON Schemas referenced by blueprints
+|-- blueprints/<id>.json
+|-- prompts/<id>.md
+|-- pipelines/<id>.json
+`-- schemas/<name>.json      # optional JSON Schemas referenced by blueprints
 ```

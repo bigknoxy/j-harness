@@ -6,13 +6,13 @@ Append a new entry after any correction or postmortem. Newest first.
 ## Format
 
 ```
-### YYYY-MM-DD — <short title>
+### YYYY-MM-DD: <short title>
 - **Failure mode:** what went wrong
 - **Detection signal:** how we noticed
 - **Prevention rule:** what to do instead
 ```
 
-### 2026-09-24 — `pkill -f <pattern>` can match the invoking shell
+### 2026-09-24: `pkill -f <pattern>` can match the invoking shell
 - **Failure mode:** a `pkill -f bin/harness` cleanup command hung, because the pattern also
   matched the shell command line that was running `pkill` itself, which then tried to signal
   the shell that was waiting for it.
@@ -21,7 +21,7 @@ Append a new entry after any correction or postmortem. Newest first.
 - **Prevention rule:** kill by PID (`kill $PID`) for processes started by the script, or match a
   pattern that cannot appear in the pkill invocation; verify with `pgrep -af` before and after.
 
-### 2026-09-24 — Registry writes must not mutate the live snapshot in place
+### 2026-09-24: Registry writes must not mutate the live snapshot in place
 - **Failure mode:** Editing an agent through the HTTP CRUD API could swap registry fields
   (`Registry` internals) while a worker was mid-run, so an in-flight execution could observe a
   half-updated agent or prompt.
@@ -32,7 +32,7 @@ Append a new entry after any correction or postmortem. Newest first.
   then swap the pointer behind a lock (`Engine.SetRegistry` + `RWMutex`). In-flight runs keep the
   snapshot they started with.
 
-### 2026-09-24 — Three concurrency-loop bugs in the DAG scheduler
+### 2026-09-24: Three concurrency-loop bugs in the DAG scheduler
 - **Failure mode:** The first `RunPipeline` DAG scheduler (a) exited as soon as no steps were
   pending, while goroutines were still in flight, losing a branch's output; (b) re-admitted
   branch-loser steps that had been marked `SKIPPED`, so they ran anyway; and (c) kept admitting
@@ -44,7 +44,7 @@ Append a new entry after any correction or postmortem. Newest first.
   mark state), and must gate new admissions on the first failure. Prefer a single owner of the
   pending/state maps with worker results delivered on a channel.
 
-### 2026-09-24 — Flaky `TestSubmitQueueFull` (worker dequeue race)
+### 2026-09-24: Flaky `TestSubmitQueueFull` (worker dequeue race)
 - **Failure mode:** The test submitted three jobs to a pool with `Workers:1, Queue:1` and
   expected the third to hit `ErrQueueFull`. On faster runners (macOS CI) the worker had
   already dequeued job 1 before job 2 was submitted, so job 2 landed in the queue and job 3
@@ -55,7 +55,7 @@ Append a new entry after any correction or postmortem. Newest first.
   progress observable (a `started` channel closed inside `Complete`) and block the test until
   the worker is provably busy before asserting queue-full behavior.
 
-### 2026-09-24 — nil-receiver methods must guard before dereferencing
+### 2026-09-24: nil-receiver methods must guard before dereferencing
 
 - **Failure mode:** `(*Metrics).Render` dereferenced the receiver (`for name, c := range m.counters`)
   without a nil check. `Inc`/`Add`/`Get` were safe because they routed through a nil-aware
@@ -66,7 +66,7 @@ Append a new entry after any correction or postmortem. Newest first.
   must guard `if m == nil` before touching fields, and a nil-receiver test must exercise all
   exported methods, not just one.
 
-### 2026-09-24 — Registry schemas must live inside the registry bundle
+### 2026-09-24: Registry schemas must live inside the registry bundle
 - **Failure mode:** Blueprints reference `output_schema` by a path relative to the registry
   root (`schemas/triage.json`), but `schemas/` lived at the repo top level. A registry
   fetched by `install.sh` was therefore not self-contained, and `uninstall.sh` left an
@@ -77,7 +77,7 @@ Append a new entry after any correction or postmortem. Newest first.
   shipped inside `agent-registry/`. Treat the registry as one self-contained bundle for
   install / run / Docker / uninstall.
 
-### 2026-09-24 — `.nojekyll` breaks README-only GitHub Pages
+### 2026-09-24: `.nojekyll` breaks README-only GitHub Pages
 - **Failure mode:** Published the repo root to the `gh-pages` branch with a committed
   `.nojekyll` marker. Jekyll was disabled, so `README.md` was never converted to `index.html`;
   the Pages site returned HTTP 404 even though the workflow went green ("built").
