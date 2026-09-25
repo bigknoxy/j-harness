@@ -15,6 +15,7 @@ docs drift.
 | `docs/API.md` | every HTTP endpoint, status codes, auth, error envelope, registry management, metrics counters, environment variables | a route is added/changed/removed, a status code changes, an env var is added/renamed/removed, metrics change |
 | `docs/SCHEMA.md` | blueprint/pipeline/job field reference, registry layout, DAG execution, template grammar, router conditions | a blueprint/pipeline/job field is added or changes meaning, the registry layout changes, the template grammar or router DSL changes |
 | `docs/DEPLOY.md` | image build, compose, full env table, GitOps deploy model, job store (SQLite/Redis), operating notes, hardening checklist | Dockerfile/compose changes, an env var is added/removed, the store options change, deploy/operating guidance changes |
+| `docs/EVALS.md` | eval suite: how to run it offline, the case schema, and the optional real-model replay | `internal/eval/cases.json` fields change, a case category is added, the run commands change |
 | `docs/MEMORY.md` | append-only decision log (newest first); why things are the way they are | any architectural or product decision is made or reversed (add a new entry; never rewrite history) |
 | `docs/DOCUMENTATION.md` | this map | a doc surface is added, removed, or changes ownership |
 | `tasks/roadmap.md` | phase/delivery tracker and statuses | a phase starts or completes |
@@ -23,6 +24,9 @@ docs drift.
 | `docker-compose.yml` | local harness + ollama topology, env wiring, healthchecks | services, ports, volumes, or env wiring change |
 | `Dockerfile` | image build stages, runtime user, stamped version | base images, build args, or runtime layout change |
 | `scripts/smoke.sh` | post-build smoke assertions (`/healthz`, `/readyz`, `/metrics`, 404 path) | a smoke-critical endpoint is added or changes |
+| `internal/e2e` | real HTTP end-to-end coverage over the full stack | an endpoint, job lifecycle, routing, auth, or registry-write behavior changes |
+| `internal/eval/cases.json` | the checked-in eval cases and their expectations | a new regression case is needed, or an expectation changes |
+| `docs/EVALS.md` | how to run evals | the runner or case schema changes |
 | `install.sh` / `uninstall.sh` | install/uninstall behavior, overridable vars, help text | install layout, download URLs, or overridable vars change |
 | `.github/workflows/*.yml` | CI (lint/test/vuln/smoke), release (GoReleaser), Pages publish | jobs, triggers, Go version, or publish steps change |
 | `.goreleaser.yaml` | release archive naming and build matrix | release artifacts or naming change |
@@ -43,7 +47,8 @@ When syncing docs, cross-check these shared facts against the code:
 - **Registry contents:** blueprints `triage`, `generic_agent`, `summarizer`,
   `risk_assessor`, `calculator`; pipelines `support_flow`, `digest_flow`; schema
   `schemas/triage.json`.
-- **Makefile gate:** `make fmt-check vet test build`.
+- **Makefile gate:** `make fmt-check vet test build`; `make e2e` and `make eval` run the
+  HTTP end-to-end and eval suites alone.
 - **Style:** ASCII only in docs, no em-dashes, no emojis, no AI tells.
 
 ## Drift check

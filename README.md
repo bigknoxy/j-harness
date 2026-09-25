@@ -140,6 +140,23 @@ This service runs LLM-driven tool calls, so treat it as code you did not write.
   tool, or any tool while tools are disabled, fails closed.
 - Never commit secrets. `OPENAI_API_KEY` is read from the environment only and is never logged.
 
+## Testing and evals
+
+Everything runs offline with no model server: tests and evals point the real OpenAI
+client at an in-process, scripted OpenAI-compatible stub.
+
+```bash
+make test    # go test -race ./... (unit + integration + e2e + evals)
+make e2e     # real HTTP end-to-end suite (full stack over httptest.Server)
+make eval    # deterministic eval suite, scored CORRECT/INCORRECT
+```
+
+- [`internal/e2e`](internal/e2e) drives registry -> SQLite store -> engine -> worker pool ->
+  `api.Handler()` over real HTTP, covering agent execute/poll/steps, pipeline branch routing,
+  DAG fan-out/fan-in, auth boundaries, registry CRUD, metrics, and concurrency.
+- [`internal/eval`](internal/eval) replays [`cases.json`](internal/eval/cases.json) and fails
+  if any case is incorrect. See [`docs/EVALS.md`](docs/EVALS.md).
+
 ## Roadmap
 
 | Phase | Deliverable | Status |
@@ -164,6 +181,7 @@ This service runs LLM-driven tool calls, so treat it as code you did not write.
 - [`docs/SCHEMA.md`](docs/SCHEMA.md) - blueprint/pipeline schema.
 - [`docs/API.md`](docs/API.md) - HTTP API reference.
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) - image build, compose, config, GitOps.
+- [`docs/EVALS.md`](docs/EVALS.md) - deterministic eval suite + optional real-model replay.
 - [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md) - index of every doc surface.
 - [`docs/MEMORY.md`](docs/MEMORY.md) - decision log.
 

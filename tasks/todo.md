@@ -22,6 +22,27 @@ None.
 
 ## Done
 
+- [x] **R1/R3/R6: real HTTP e2e suite + deterministic eval suite** (verified:
+  `gofmt -l .` empty; `go vet ./...` clean; `go test -race ./...` all packages ok
+  incl. new `internal/e2e` (7 tests, ~1.4s) and `internal/eval` (9 cases, all
+  CORRECT); `make fmt-check vet test` green.)
+  - `internal/llmstub`: test-only OpenAI-compatible `httptest` server with scripted
+    responses (ordered or selected by system prompt); no network, no model
+  - `internal/e2e/e2e_test.go`: full stack over real HTTP (registry -> temp SQLite ->
+    engine -> worker pool -> `api.Handler()` -> `httptest.Server`) driving the real
+    `llm.NewOpenAI` (+ retry) client at the stub. Covers agent execute -> 202 ->
+    poll COMPLETED + result + steps; `support_flow` routing (billing vs technical
+    branches COMPLETED vs SKIPPED); `digest_flow` DAG; auth boundary (401 on
+    `/v1/*`, 200 on `/healthz`/`/readyz`/`/metrics`); registry CRUD round-trip +
+    400 on invalid write; metrics after jobs; 12-job concurrency smoke. Deadline
+    polling (3ms interval, 5s deadline), no fixed sleeps.
+  - `internal/eval` (`eval_test.go` + `cases.json`): checked-in deterministic eval
+    runner with explicit CORRECT/INCORRECT scoring and a summary; cases for triage
+    classification, output-schema conformance + single repair turn, fail-closed on
+    unrepairable output, `support_flow` routing, and the bounded tool-call loop.
+  - `docs/EVALS.md`; `make e2e` / `make eval` targets; docs/ARCHITECTURE testing
+    section + package rows; README testing section + doc link; DOCUMENTATION map.
+
 - [x] **Phase 11: Optional Redis `Store` adapter**
   (verified: `go test -race ./...` all packages ok incl. new
   `internal/store/redis` (1.04s); `internal/store/redis/redis_test.go` runs the full

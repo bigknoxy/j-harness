@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "triage_billing",
+      "kind": "agent",
+      "agent": "triage",
+      "input": "I was charged twice on my last invoice and need a refund.",
+      "script": [
+        { "content": "{\"category\":\"billing\",\"priority\":\"high\"}", "total_tokens": 2 }
+      ],
+      "expect": {
+        "json_fields": { "category": "billing", "priority": "high" },
+        "schema": "schemas/triage.json"
+      }
+    },
+    {
+      "name": "triage_technical",
+      "kind": "agent",
+      "agent": "triage",
+      "input": "The app crashes with an error every time I open the dashboard.",
+      "script": [
+        { "content": "{\"category\":\"technical\",\"priority\":\"normal\"}", "total_tokens": 2 }
+      ],
+      "expect": {
+        "json_fields": { "category": "technical", "priority": "normal" },
+        "schema": "schemas/triage.json"
+      }
+    },
+    {
+      "name": "triage_other",
+      "kind": "agent",
+      "agent": "triage",
+      "input": "Just wanted to say the new logo looks nice.",
+      "script": [
+        { "content": "{\"category\":\"other\",\"priority\":\"low\"}", "total_tokens": 2 }
+      ],
+      "expect": {
+        "json_fields": { "category": "other", "priority": "low" },
+        "schema": "schemas/triage.json"
+      }
+    },
+    {
+      "name": "triage_schema_conformance",
+      "kind": "agent",
+      "agent": "triage",
+      "input": "This is a general comment.",
+      "script": [
+        { "content": "```json\n{\"category\":\"other\",\"priority\":\"low\"}\n```", "total_tokens": 2 }
+      ],
+      "expect": {
+        "json_fields": { "category": "other", "priority": "low" },
+        "schema": "schemas/triage.json"
+      }
+    },
+    {
+      "name": "triage_schema_repair",
+      "kind": "agent",
+      "agent": "triage",
+      "input": "I need help with billing.",
+      "script": [
+        { "content": "{\"category\":\"banana\",\"priority\":\"high\"}", "total_tokens": 2 },
+        { "content": "{\"category\":\"billing\",\"priority\":\"high\"}", "total_tokens": 2 }
+      ],
+      "expect": {
+        "json_fields": { "category": "billing", "priority": "high" },
+        "schema": "schemas/triage.json",
+        "calls": 2
+      }
+    },
+    {
+      "name": "triage_invalid_fails_closed",
+      "kind": "agent",
+      "agent": "triage",
+      "input": "Anything.",
+      "script": [
+        { "content": "{\"category\":\"banana\",\"priority\":\"high\"}", "total_tokens": 2 },
+        { "content": "{\"still\":\"invalid\"}", "total_tokens": 2 }
+      ],
+      "expect": {
+        "failed": true
+      }
+    },
+    {
+      "name": "support_flow_billing_routes_billing",
+      "kind": "pipeline",
+      "pipeline": "support_flow",
+      "inputs": { "user_input": "I was overcharged on my invoice." },
+      "script_by_prompt": {
+        "support-triage classifier": { "content": "{\"category\":\"billing\",\"priority\":\"high\"}", "total_tokens": 2 },
+        "generic support responder": { "content": "billing reply", "total_tokens": 2 },
+        "*": { "content": "support reply", "total_tokens": 2 }
+      },
+      "expect": {
+        "steps_completed": ["triage", "route", "billing_reply"],
+        "steps_skipped": ["tech_reply", "generic_reply"]
+      }
+    },
+    {
+      "name": "support_flow_technical_routes_tech",
+      "kind": "pipeline",
+      "pipeline": "support_flow",
+      "inputs": { "user_input": "The app crashes on startup with a stack trace." },
+      "script_by_prompt": {
+        "support-triage classifier": { "content": "{\"category\":\"technical\",\"priority\":\"normal\"}", "total_tokens": 2 },
+        "generic support responder": { "content": "tech reply", "total_tokens": 2 },
+        "*": { "content": "support reply", "total_tokens": 2 }
+      },
+      "expect": {
+        "steps_completed": ["triage", "route", "tech_reply"],
+        "steps_skipped": ["billing_reply", "generic_reply"]
+      }
+    },
+    {
+      "name": "calculator_tool_call_round_trip",
+      "kind": "agent",
+      "agent": "calculator",
+      "input": "What is 6*7?",
+      "script": [
+        {
+          "tool_name": "math_eval",
+          "tool_args": "{\"expression\":\"6*7\"}",
+          "total_tokens": 3
+        },
+        { "content": "the answer is 42", "total_tokens": 2 }
+      ],
+      "expect": {
+        "result": "the answer is 42",
+        "calls": 2
+      }
+    }
+  ]
+}
