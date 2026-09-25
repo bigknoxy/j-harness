@@ -22,6 +22,40 @@ None.
 
 ## Done
 
+- [x] **WS1: prior-art research on docs, e2e, evals, and quality gates** (verified:
+  `docs/research/PRIOR-ART.md` (405 lines) and `docs/research/RECOMMENDATIONS.md`
+  (136 lines) merged; 11 comparable projects surveyed (Pydantic AI, Haystack,
+  inspect_evals, LangChain, Temporal, DSPy, promptfoo, Argo, OpenAI Evals); ranked
+  recommendations R1-R8 with effort/impact/dependency. Drove WS3 and WS4.)
+  - `docs/research/PRIOR-ART.md`: how peer projects handle doc sync, real-server
+    e2e, eval suites, and quality gates
+  - `docs/research/RECOMMENDATIONS.md`: gaps in j-harness plus a proposed order
+    (R1 -> R6 -> R2 -> R4 -> R3 -> R5 -> R7, R8 deferred), all keeping `go.mod` at
+    one runtime dependency
+
+- [x] **WS2: full documentation sync after phases 8-11** (verified: 14 files changed
+  in one PR; reviewed the full diff for factual accuracy.)
+  - `index.html` rebuild (roadmap "all phases 0-11 complete", new feature cards,
+    API table gains `/metrics` and registry methods)
+  - README status/features/API table/install pin `v0.1.0`/DEPLOY+DOCUMENTATION links
+  - AGENTS.md, docs/ARCHITECTURE.md (ASCII diagram, Redis, CPU-count workers,
+    metrics no longer "planned"), docs/API.md, docs/SCHEMA.md, docs/DEPLOY.md,
+    docker-compose.yml, docs/MEMORY.md, tasks/*.md
+  - deleted `config.example.json` (dead: no Go loader, keys match no flag/env var)
+  - new `docs/DOCUMENTATION.md` (documentation map + consistency checklist)
+
+- [x] **WS5: code review + simplifier pass (phases 8-11)** (verified: `gofmt -l .`
+  empty; `go vet ./...` clean; `go test -race ./...` all packages ok; test count
+  122 -> 125.)
+  - 7 real bug fixes: per-blueprint tool allowlist enforced at call time; bare
+    `null` rejected by `validateJSONObject`; `repairSchema` uses the run's captured
+    schema; `WriteBlueprint` compiles `output_schema` before writing; metrics map
+    race fixed with `RWMutex`; constant-time bearer token compare; Redis `EXEC`
+    per-command errors surfaced
+  - simplifications: removed the write-only unbounded `jh:sessions` set (duplicate
+    detection is already atomic via `HSETNX`); `resolveTools` takes one lock
+    snapshot instead of three
+
 - [x] **WS4 / R2+R4+R5: docs drift gate enforced on every PR** (verified:
   `go test ./internal/docscheck/...` 6 tests pass; deliberately corrupted README/API
   fixtures each fail with a file-naming diff message (stale route, missing route, stale
