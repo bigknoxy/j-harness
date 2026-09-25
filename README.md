@@ -137,7 +137,8 @@ This service runs LLM-driven tool calls, so treat it as code you did not write.
 - Tool calling is **off by default** (`ENABLE_TOOLS=false`). When enabled, only a fixed,
   side-effect-free allowlist is available (`current_time`, `word_count`, `math_eval`); there
   is no shell, filesystem, or arbitrary-network tool. A blueprint that requests an unknown
-  tool, or any tool while tools are disabled, fails closed.
+  tool, or any tool while tools are disabled, fails closed, and the model can only invoke the
+  tools that blueprint declares.
 - Never commit secrets. `OPENAI_API_KEY` is read from the environment only and is never logged.
 
 ## Roadmap

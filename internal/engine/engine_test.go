@@ -98,6 +98,15 @@ func TestRunAgentJSONInvalid(t *testing.T) {
 	}
 }
 
+func TestRunAgentJSONNullRejected(t *testing.T) {
+	// A bare `null` unmarshals into a nil map without error, but it is not a
+	// JSON object, so it must be rejected.
+	eng, _ := testEngine(t, llm.Response{Content: "null"})
+	if _, err := eng.RunAgent(context.Background(), "triage", "x"); err == nil {
+		t.Fatal("expected error for null JSON output")
+	}
+}
+
 func TestRunAgentUnknown(t *testing.T) {
 	eng, _ := testEngine(t)
 	if _, err := eng.RunAgent(context.Background(), "nope", "x"); err == nil {

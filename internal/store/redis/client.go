@@ -154,6 +154,14 @@ func (c *conn) doMulti(ctx context.Context, cmds [][]string) ([]reply, error) {
 	if r.nil {
 		return nil, errors.New("redis: transaction aborted (EXEC returned nil)")
 	}
+	// A command queued in MULTI can still fail at EXEC time (e.g. WRONGTYPE).
+	// Redis reports it as an error element in the EXEC array; surface the first
+	// one instead of silently discarding the failure.
+	for _, e := range r.arr {
+		if e.kind == '-' {
+			return r.arr, &redisError{msg: e.str}
+		}
+	}
 	return r.arr, nil
 }
 

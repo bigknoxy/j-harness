@@ -6,7 +6,6 @@
 // small pooled client (see client.go). Data model:
 //
 //	jh:seq                 monotonic counter (ordering + step ids)
-//	jh:sessions            set of known session ids (duplicate detection)
 //	jh:job:<id>            hash of job fields
 //	jh:jobs:<STATUS>       sorted set of session ids scored by creation order
 //	jh:steps:<id>          list of JSON-encoded step results, insertion order
@@ -151,9 +150,6 @@ func (s *RedisStore) CreateJob(ctx context.Context, job model.Job) error {
 	created, _ := claim.int64()
 	if created == 0 {
 		return fmt.Errorf("store: create job: session %q already exists", job.SessionID)
-	}
-	if _, err := s.cmd(ctx, "SADD", s.pfx+"sessions", job.SessionID); err != nil {
-		return fmt.Errorf("store: create job: %w", err)
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)

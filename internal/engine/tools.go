@@ -21,12 +21,13 @@ func (e *Engine) resolveTools(bp model.AgentBlueprint) ([]llm.Tool, error) {
 	if len(bp.Tools) == 0 {
 		return nil, nil
 	}
-	if e.enabledTools() == nil || e.enabledTools().Len() == 0 {
+	reg := e.enabledTools()
+	if reg == nil || reg.Len() == 0 {
 		return nil, fmt.Errorf("engine: agent %q requests tools but tools are disabled (set ENABLE_TOOLS=true)", bp.ID)
 	}
 	out := make([]llm.Tool, 0, len(bp.Tools))
 	for _, name := range bp.Tools {
-		fn, ok := e.enabledTools().Get(name)
+		fn, ok := reg.Get(name)
 		if !ok {
 			return nil, fmt.Errorf("engine: agent %q requests unknown tool %q", bp.ID, name)
 		}
@@ -43,8 +44,9 @@ func (e *Engine) resolveTools(bp model.AgentBlueprint) ([]llm.Tool, error) {
 }
 
 // completeWithTools runs the bounded tool-call loop. It returns the final
-// assistant content plus accumulated token usage.
-func (e *Engine) completeWithTools(ctx context.Context, req llm.Request) (llm.Response, error) {
+// assistant content plus accumulated token usage. allowed is the blueprint's
+// allowlist; a model call for any other enabled tool is refused.
+func (e *Engine) completeWithTools(ctx context.Context, req llm.Request, allowed map[string]bool) (llm.Response, error) {
 	var usage llm.Response
 	for round := 0; round < maxToolRounds; round++ {
 		resp, err := e.client.Complete(ctx, req)
@@ -66,7 +68,7 @@ func (e *Engine) completeWithTools(ctx context.Context, req llm.Request) (llm.Re
 			ToolCalls: resp.ToolCalls,
 		})
 		for _, call := range resp.ToolCalls {
-			result := e.runTool(ctx, call)
+			result := e.runTool(ctx, call, allowed)
 			req.Messages = append(req.Messages, llm.Message{
 				Role:       "tool",
 				ToolCallID: call.ID,
@@ -79,7 +81,10 @@ func (e *Engine) completeWithTools(ctx context.Context, req llm.Request) (llm.Re
 
 // runTool executes one tool call and returns its textual result. Tool errors are
 // returned as text so the model can react rather than failing the whole run.
-func (e *Engine) runTool(ctx context.Context, call llm.ToolCall) string {
+func (e *Engine) runTool(ctx context.Context, call llm.ToolCall, allowed map[string]bool) string {
+	if !allowed[call.Function.Name] {
+		return fmt.Sprintf("error: tool %q is not enabled for this agent", call.Function.Name)
+	}
 	fn, ok := e.enabledTools().Get(call.Function.Name)
 	if !ok {
 		return fmt.Sprintf("error: unknown tool %q", call.Function.Name)

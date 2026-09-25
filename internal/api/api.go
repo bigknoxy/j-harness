@@ -6,6 +6,7 @@ package api
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -55,8 +56,9 @@ type API struct {
 	logger   *log.Logger
 	metrics  *metrics.Metrics
 
-	// mu guards swap of the registry snapshot on registry writes.
-	mu sync.Mutex
+	// mu guards swap of the registry snapshot on registry writes. Reads take
+	// the read lock so concurrent handler lookups do not serialize.
+	mu sync.RWMutex
 }
 
 // New validates the config and returns an API.
@@ -108,10 +110,10 @@ func (a *API) Handler() http.Handler {
 }
 
 // currentRegistry returns the registry snapshot in use. Writes swap it under
-// mu, so reads take mu to get a consistent pointer.
+// mu, so reads take the read lock to get a consistent pointer.
 func (a *API) currentRegistry() *registry.Registry {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return a.registry
 }
 
@@ -145,7 +147,7 @@ func (a *API) authenticate(next http.Handler) http.Handler {
 			return
 		}
 		token := bearerToken(r.Header.Get("Authorization"))
-		if token == "" || token != a.auth {
+		if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(a.auth)) != 1 {
 			writeError(w, http.StatusUnauthorized, "unauthorized", "missing or invalid bearer token")
 			return
 		}

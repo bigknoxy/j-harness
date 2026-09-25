@@ -162,3 +162,28 @@ func TestRunAgentToolLoopBounded(t *testing.T) {
 		t.Fatalf("requests = %d, want %d", len(client.requests), maxToolRounds)
 	}
 }
+
+func TestRunAgentRejectsToolOutsideBlueprintAllowlist(t *testing.T) {
+	reg := writeToolRegistry(t)
+	// The model calls word_count, which is enabled globally but not declared by
+	// the solver blueprint (which lists only math_eval).
+	client := &scriptedClient{responses: []llm.Response{
+		{ToolCalls: []llm.ToolCall{{ID: "c1", Type: "function", Function: llm.ToolCallFunction{Name: "word_count", Arguments: `{"text":"a b c"}`}}}},
+		{Content: "done"},
+	}}
+	eng, _ := New(reg, client)
+	toolReg, _ := tools.New("math_eval", "word_count")
+	eng.SetTools(toolReg)
+
+	if _, err := eng.RunAgent(context.Background(), "solver", "hi"); err != nil {
+		t.Fatalf("RunAgent: %v", err)
+	}
+	if len(client.requests) < 2 {
+		t.Fatalf("requests = %d, want >= 2", len(client.requests))
+	}
+	for _, m := range client.requests[1].Messages {
+		if m.Role == "tool" && !strings.Contains(m.Content, "not enabled") {
+			t.Fatalf("disallowed tool should be refused, got %q", m.Content)
+		}
+	}
+}
