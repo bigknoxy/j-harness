@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 )
 
 // Metrics is a set of named counters. The zero value is not usable; call New.
 type Metrics struct {
+	mu       sync.RWMutex
 	counters map[string]*atomic.Int64
 }
 
@@ -29,11 +31,19 @@ func (m *Metrics) counter(name string) *atomic.Int64 {
 	if m == nil {
 		return &atomic.Int64{}
 	}
+	m.mu.RLock()
 	c, ok := m.counters[name]
-	if !ok {
-		c = &atomic.Int64{}
-		m.counters[name] = c
+	m.mu.RUnlock()
+	if ok {
+		return c
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if c, ok := m.counters[name]; ok {
+		return c
+	}
+	c = &atomic.Int64{}
+	m.counters[name] = c
 	return c
 }
 
@@ -51,14 +61,16 @@ func (m *Metrics) Render() string {
 	if m == nil {
 		return ""
 	}
+	m.mu.RLock()
 	names := make([]string, 0, len(m.counters))
 	for name := range m.counters {
 		names = append(names, name)
 	}
+	m.mu.RUnlock()
 	sort.Strings(names)
 	var b strings.Builder
 	for _, name := range names {
-		fmt.Fprintf(&b, "# TYPE %s counter\n%s %d\n", name, name, m.counters[name].Load())
+		fmt.Fprintf(&b, "# TYPE %s counter\n%s %d\n", name, name, m.counter(name).Load())
 	}
 	return b.String()
 }

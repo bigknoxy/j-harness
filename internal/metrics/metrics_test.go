@@ -44,3 +44,19 @@ func TestNilMetricsSafe(t *testing.T) {
 		t.Fatal("nil Render should be empty")
 	}
 }
+
+func TestConcurrentIncAndRender(t *testing.T) {
+	m := New()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 500; i++ {
+			m.Inc("dynamic")
+			m.Render()
+		}
+	}()
+	for i := 0; i < 500; i++ {
+		m.Inc("other")
+	}
+	<-done
+}

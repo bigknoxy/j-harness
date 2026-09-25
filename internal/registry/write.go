@@ -15,6 +15,14 @@ func (r *Registry) WriteBlueprint(bp model.AgentBlueprint, prompt string) error 
 	if err := r.validateBlueprint(bp.ID, &bp); err != nil {
 		return err
 	}
+	// Compile the output schema before writing anything so a missing or invalid
+	// schema fails the write instead of being persisted and then rejected by the
+	// post-write reload (which would leave the registry unserveable until fixed).
+	if bp.OutputSchema != "" {
+		if _, err := r.compileOutputSchema(bp); err != nil {
+			return err
+		}
+	}
 	rel, err := safeRel(bp.PromptPath)
 	if err != nil {
 		return err

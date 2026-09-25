@@ -12,6 +12,18 @@ Append a new entry after any correction or postmortem. Newest first.
 - **Prevention rule:** what to do instead
 ```
 
+### 2026-09-25: Per-blueprint tool allowlist must be enforced at call time, not just at resolve time
+- **Failure mode:** `resolveTools` checked each blueprint's `tools` list against the global
+  enabled registry and advertised only those to the model, but `runTool` looked the called name
+  up in the *global* registry alone. A model could therefore invoke any globally-enabled tool
+  (e.g. `current_time`) even when the blueprint declared only `math_eval`, silently bypassing
+  the per-agent capability boundary.
+- **Detection signal:** Code review of the Phase 8 tool loop; the advertised tool list and the
+  executable tool set were derived from two different sources.
+- **Prevention rule:** When a capability is scoped to an entity (blueprint), enforce that scope
+  at execution time too. Resolve the allowlist once into a set, advertise it, and re-check every
+  incoming call against the same set before running the tool.
+
 ### 2026-09-24: `pkill -f <pattern>` can match the invoking shell
 - **Failure mode:** a `pkill -f bin/harness` cleanup command hung, because the pattern also
   matched the shell command line that was running `pkill` itself, which then tried to signal

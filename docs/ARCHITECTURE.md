@@ -61,7 +61,9 @@ git-tracked files. Job state is embedded SQLite by default, with an optional Red
    - **agent step:** resolve input template -> load blueprint + prompt -> call `llm.Client` ->
      persist named output + a `StepResult` (timing/tokens/status). If the blueprint lists
      tools (and `ENABLE_TOOLS=true`), the engine runs a bounded tool-calling loop (at most
-     `maxToolRounds` model turns), feeding tool results back as `role: "tool"` messages.
+     `maxToolRounds` model turns), feeding tool results back as `role: "tool"` messages. Only
+     the tools named in the blueprint are executable; the model cannot call any other enabled
+     tool.
    - **router step:** evaluate route conditions against the resolved input -> select next step(s).
    - **fan-out/fan-in:** steps with multiple successors run in parallel; a join step waits for
      all declared predecessors.

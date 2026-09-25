@@ -16,6 +16,7 @@ import (
 	"github.com/bigknoxy/j-harness/internal/metrics"
 	"github.com/bigknoxy/j-harness/internal/model"
 	"github.com/bigknoxy/j-harness/internal/registry"
+	"github.com/bigknoxy/j-harness/internal/schema"
 	"github.com/bigknoxy/j-harness/internal/tools"
 )
 
@@ -136,7 +137,11 @@ func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResu
 	var resp llm.Response
 	if len(toolDefs) > 0 {
 		req.Messages = buildToolMessages(prompt, input)
-		resp, err = e.completeWithTools(ctx, req)
+		allowed := make(map[string]bool, len(bp.Tools))
+		for _, name := range bp.Tools {
+			allowed[name] = true
+		}
+		resp, err = e.completeWithTools(ctx, req, allowed)
 	} else {
 		resp, err = e.client.Complete(ctx, req)
 	}
@@ -153,7 +158,7 @@ func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResu
 		}
 		if outSchema := reg.OutputSchema(agentID); outSchema != nil {
 			if err := outSchema.Validate(stripCodeFence(content)); err != nil {
-				repaired, repairTokens, repairedErr := e.repairSchema(ctx, agentID, req, content, err)
+				repaired, repairTokens, repairedErr := e.repairSchema(ctx, req, outSchema, content, err)
 				if repairedErr != nil {
 					e.getMetrics().Inc(metrics.SchemaFailures)
 					return AgentResult{DurationMS: time.Since(start).Milliseconds()},
@@ -174,9 +179,9 @@ func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResu
 }
 
 // repairSchema makes a single corrective turn when a schema-validated output
-// fails validation. It returns the corrected content (already re-validated),
-// the extra tokens spent, or an error.
-func (e *Engine) repairSchema(ctx context.Context, agentID string, base llm.Request, content string, verr error) (string, int, error) {
+// fails validation. It re-validates the correction against outSchema and
+// returns the corrected content, the extra tokens spent, or an error.
+func (e *Engine) repairSchema(ctx context.Context, base llm.Request, outSchema *schema.Schema, content string, verr error) (string, int, error) {
 	req := base
 	req.Messages = []llm.Message{
 		{Role: "system", Content: base.SystemPrompt},
@@ -199,10 +204,8 @@ func (e *Engine) repairSchema(ctx context.Context, agentID string, base llm.Requ
 	if err := validateJSONObject(trimmed); err != nil {
 		return "", resp.TotalTokens, err
 	}
-	if outSchema := e.getRegistry().OutputSchema(agentID); outSchema != nil {
-		if err := outSchema.Validate(trimmed); err != nil {
-			return "", resp.TotalTokens, err
-		}
+	if err := outSchema.Validate(trimmed); err != nil {
+		return "", resp.TotalTokens, err
 	}
 	return out, resp.TotalTokens, nil
 }
@@ -215,6 +218,9 @@ func validateJSONObject(content string) error {
 	var obj map[string]any
 	if err := json.Unmarshal([]byte(trimmed), &obj); err != nil {
 		return err
+	}
+	if obj == nil {
+		return fmt.Errorf("not a JSON object")
 	}
 	return nil
 }
