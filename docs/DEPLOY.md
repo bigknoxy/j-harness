@@ -9,7 +9,7 @@ registry directory that git owns.
 ```sh
 docker build -t j-harness:local .
 # or, to stamp a version into `harness --version`:
-docker build --build-arg VERSION=0.1.0 -t j-harness:0.1.0 .
+docker build --build-arg VERSION=0.2.0 -t j-harness:0.2.0 .
 ```
 
 The image is multi-stage: a `golang:1.27-alpine` builder compiles with
@@ -73,7 +73,7 @@ request against `agent-registry/`, reviewed like any other change.
    a bad merge is caught before it serves traffic.
 3. Promote by tagging the source and building your image from that tag. Pass the
    tag through the compose build arg `VERSION` (or `docker build --build-arg
-   VERSION=0.1.0`) so `harness --version` and `/healthz` identify the build. No
+   VERSION=0.2.0`) so `harness --version` and `/healthz` identify the build. No
    container registry is published by CI; build and push the image in your own
    pipeline if you need one.
 
