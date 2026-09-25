@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/bigknoxy/j-harness/main/install.sh 
 ```
 
 This drops the `harness` binary in `~/.local/bin` and a starter registry in
-`~/.config/j-harness/registry`. Pin a version with `VERSION=v0.1.0`, change the location
+`~/.config/j-harness/registry`. Pin a version with `VERSION=v0.2.0`, change the location
 with `PREFIX=/usr/local`.
 
 Uninstall:
@@ -137,8 +137,31 @@ This service runs LLM-driven tool calls, so treat it as code you did not write.
 - Tool calling is **off by default** (`ENABLE_TOOLS=false`). When enabled, only a fixed,
   side-effect-free allowlist is available (`current_time`, `word_count`, `math_eval`); there
   is no shell, filesystem, or arbitrary-network tool. A blueprint that requests an unknown
-  tool, or any tool while tools are disabled, fails closed.
+  tool, or any tool while tools are disabled, fails closed, and the model can only invoke the
+  tools that blueprint declares.
 - Never commit secrets. `OPENAI_API_KEY` is read from the environment only and is never logged.
+
+## Testing and evals
+
+Everything runs offline with no model server: tests and evals point the real OpenAI
+client at an in-process, scripted OpenAI-compatible stub.
+
+```bash
+make test    # go test -race ./... (unit + integration + e2e + evals)
+make e2e     # real HTTP end-to-end suite (full stack over httptest.Server)
+make eval    # deterministic eval suite, scored CORRECT/INCORRECT
+make docs    # offline docs-drift gate: routes/env/metrics vs docs, links, ASCII
+```
+
+Docs are enforced, not implied: `make docs` (also the CI `docs` job) compares code with the
+documented surface and fails on drift. Every PR must update the docs it touches or say
+"no docs impact" in the PR template; see [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md).
+
+- [`internal/e2e`](internal/e2e) drives registry -> SQLite store -> engine -> worker pool ->
+  `api.Handler()` over real HTTP, covering agent execute/poll/steps, pipeline branch routing,
+  DAG fan-out/fan-in, auth boundaries, registry CRUD, metrics, and concurrency.
+- [`internal/eval`](internal/eval) replays [`cases.json`](internal/eval/cases.json) and fails
+  if any case is incorrect. See [`docs/EVALS.md`](docs/EVALS.md).
 
 ## Roadmap
 
@@ -164,6 +187,7 @@ This service runs LLM-driven tool calls, so treat it as code you did not write.
 - [`docs/SCHEMA.md`](docs/SCHEMA.md) - blueprint/pipeline schema.
 - [`docs/API.md`](docs/API.md) - HTTP API reference.
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) - image build, compose, config, GitOps.
+- [`docs/EVALS.md`](docs/EVALS.md) - deterministic eval suite + optional real-model replay.
 - [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md) - index of every doc surface.
 - [`docs/MEMORY.md`](docs/MEMORY.md) - decision log.
 
