@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/bigknoxy/j-harness/internal/ratelimit"
 	"runtime"
 	"strings"
 	"sync"
@@ -117,6 +118,12 @@ func (e *Engine) RunAgent(ctx context.Context, agentID, input string) (AgentResu
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(bp.TimeoutSeconds)*time.Second)
 		defer cancel()
 	}
+
+	// Attach per-blueprint concurrency/rate overrides so that when the client is
+	// wrapped by an llm.Client-level limiter (*ratelimit.Limiter), it enforces
+	// this agent's declared capacity for its backend. Zero/empty => use the
+	// configured default.
+	ctx = ratelimit.WithOverride(ctx, bp.Concurrency, bp.RateLimit)
 
 	toolDefs, err := e.resolveTools(bp)
 	if err != nil {

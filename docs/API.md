@@ -194,8 +194,12 @@ Errors use a JSON envelope: `{"error":{"code":"...","message":"..."}}`.
 | `HARNESS_REDIS_PREFIX` | `jh:` | Redis key namespace |
 | `HARNESS_WORKERS` | number of CPUs | worker pool size |
 | `HARNESS_RETRIES` | `3` | max LLM attempts per call (`1` disables retries) |
+| `HARNESS_CONCURRENCY_DEFAULT` | `1` | max in-flight requests per backend endpoint (backpressure against capacity-constrained servers) |
+| `HARNESS_RATE_LIMIT` | off | global token-bucket rate limit per endpoint, e.g. `5/2` = 5 req/s, burst 2 |
 | `HARNESS_AUTH_TOKEN` | empty | bearer token; required for `/v1/*` when set |
 | `ENABLE_TOOLS` | `false` | enable built-in tool calling |
 | `OPENAI_BASE_URL` | `http://127.0.0.1:11434/v1` | LLM endpoint |
 | `OPENAI_MODEL` | empty | default model (blueprints override) |
 | `OPENAI_API_KEY` | empty | bearer token sent to the LLM endpoint |
+
+Per-endpoint concurrency and rate overrides are also read from environment, keyed on the endpoint's `host:port` with dots, colons, slashes and backslashes replaced by underscores, e.g. the server at `http://192.168.8.149:8081/v1` is governed by `HARNESS_CONCURRENCY_192_168_8_149_8081` and `HARNESS_RATE_LIMIT_192_168_8_149_8081`. Per-blueprint `concurrency` and `rate_limit` JSON fields take precedence over both. Default concurrency is 1 for local llama.cpp servers; raise `HARNESS_CONCURRENCY_DEFAULT` for cloud or multi-GPU backends. See `docs/DEPLOY.md`.
