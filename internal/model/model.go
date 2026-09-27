@@ -33,7 +33,15 @@ type AgentBlueprint struct {
 	OutputFormat   OutputFormat `json:"output_format,omitempty"`
 	OutputSchema   string       `json:"output_schema,omitempty"`
 	Tools          []string     `json:"tools,omitempty"`
-	Version        int          `json:"version"`
+	// Concurrency is the max in-flight requests to this agent's backend
+	// (defaults to HARNESS_CONCURRENCY_DEFAULT, 1 for local servers). A
+	// value of 0 means use the configured default.
+	Concurrency int `json:"concurrency,omitempty"`
+	// RateLimit is an optional per-blueprint token-bucket rate limit
+	// ("4/2" = 4 req/s, burst 2). Empty disables rate-limited shaping
+	// for this agent beyond the default.
+	RateLimit string `json:"rate_limit,omitempty"`
+	Version   int    `json:"version"`
 }
 
 // Router condition operators.

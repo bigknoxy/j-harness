@@ -24,6 +24,7 @@ import (
 	"github.com/bigknoxy/j-harness/internal/engine"
 	"github.com/bigknoxy/j-harness/internal/llm"
 	"github.com/bigknoxy/j-harness/internal/metrics"
+	"github.com/bigknoxy/j-harness/internal/ratelimit"
 	"github.com/bigknoxy/j-harness/internal/registry"
 	"github.com/bigknoxy/j-harness/internal/store"
 	redisstore "github.com/bigknoxy/j-harness/internal/store/redis"
@@ -74,11 +75,16 @@ func main() {
 
 	// Retries wrap the client, not the engine: only transport failures and
 	// HTTP 429/5xx are retried, 4xx fails fast (see docs/MEMORY.md).
-	var client llm.Client = llm.NewRetry(baseClient, llm.Retry{
+	retryClient := llm.NewRetry(baseClient, llm.Retry{
 		MaxAttempts: *retries,
 		OnRetry:     func() { met.Inc(metrics.LLMRetries) },
 	})
+	// Rate limiting wraps the retry client so retries count against per-endpoint
+	// capacity (never over-drive a backend that's already at its limit).
+	var client llm.Client = ratelimit.New(retryClient, ratelimit.FromEnv())
 	log.Printf("llm retries: max %d attempt(s)", *retries)
+	log.Printf("ratelimit: default concurrency=%d, rate=%s",
+		ratelimit.FromEnv().DefaultConcurrency, envOr("HARNESS_RATE_LIMIT", "off"))
 
 	eng, err := engine.New(reg, client)
 	if err != nil {
