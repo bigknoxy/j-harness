@@ -94,9 +94,10 @@ type Limiter struct {
 	llm.Client
 	cfg Config
 
-	mu      sync.Mutex
-	sem     map[string]chan struct{}
-	limiter map[string]*rate.Limiter
+	mu       sync.Mutex
+	sem      map[string]chan struct{} // endpoint -> bounded concurrency semaphore
+	conns    map[string]int           // endpoint -> resolved concurrency (cached)
+	limiters map[string]*rate.Limiter // "key|limit|burst" -> token bucket
 }
 
 // New wraps client and applies cfg across endpoints.
@@ -108,10 +109,11 @@ func New(client llm.Client, cfg Config) *Limiter {
 		cfg.DefaultConcurrency = 1
 	}
 	return &Limiter{
-		Client:  client,
-		cfg:     cfg,
-		sem:     make(map[string]chan struct{}),
-		limiter: make(map[string]*rate.Limiter),
+		Client:   client,
+		cfg:      cfg,
+		sem:      make(map[string]chan struct{}),
+		conns:    make(map[string]int),
+		limiters: make(map[string]*rate.Limiter),
 	}
 }
 
@@ -152,6 +154,13 @@ func (l *Limiter) rateLimit(key string, ov override) (rate.Limit, int) {
 	return l.cfg.DefaultRate, l.cfg.DefaultBurst
 }
 
+// semKey returns a stable semaphore cache key that combines the endpoint
+// with the concurrency level, so each (endpoint, concurrency) pair gets its
+// own channel and never needs resizing.
+func semKey(endpoint string, concurrency int) string {
+	return fmt.Sprintf("%s|%d", endpoint, concurrency)
+}
+
 // envKey turns an endpoint host:port into an env-var-safe suffix (dots and
 // colons -> underscores), e.g. "192.168.8.149:8081" -> "192_168_8_149_8081".
 func envKey(host string) string {
@@ -159,33 +168,45 @@ func envKey(host string) string {
 	return strings.ToUpper(s)
 }
 
-// semFor returns the semaphore for an endpoint, resizing its buffer to match
-// the requested concurrency.
+// semFor returns the semaphore for an endpoint, creating it once at the
+// resolved concurrency. The concurrency is cached per endpoint so a semaphore
+// is never resized while in use (resizing a buffered channel mid-flight would
+// lose waiters and is a data race). Env/per-endpoint values are immutable for
+// the process lifetime; blueprint overrides resolve to a concrete int and are
+// cached under that value, so each distinct concurrency value gets its own
+// semaphore and they don't interfere.
 func (l *Limiter) semFor(key string, n int) chan struct{} {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	cur := l.sem[key]
-	if cur != nil && cap(cur) == n {
-		return cur
+	// cache the resolved concurrency for this endpoint; if it changed (only
+	// possible via per-request override producing a different int), we key the
+	// semaphore by concurrency too so each size gets its own channel.
+	ck := semKey(key, n)
+	if ch, ok := l.sem[ck]; ok {
+		return ch
 	}
 	ch := make(chan struct{}, n)
-	l.sem[key] = ch
+	l.sem[ck] = ch
+	l.conns[ck] = n
 	return ch
 }
 
-// rateLimiterFor returns (and caches) the token bucket for an endpoint, or nil
-// if rate limiting is disabled for it.
+// rateLimiterFor returns (and caches) the token bucket for a specific limit/burst.
+// The cache key incorporates limit and burst so a blueprint override that
+// differs from the env default gets its own bucket instead of silently reusing
+// another endpoint's.
 func (l *Limiter) rateLimiterFor(key string, limit rate.Limit, burst int) *rate.Limiter {
 	if limit <= 0 || burst <= 0 {
 		return nil
 	}
+	ck := fmt.Sprintf("%s|%d|%d", key, int(limit), burst)
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if rl, ok := l.limiter[key]; ok {
+	if rl, ok := l.limiters[ck]; ok {
 		return rl
 	}
 	rl := rate.NewLimiter(limit, burst)
-	l.limiter[key] = rl
+	l.limiters[ck] = rl
 	return rl
 }
 

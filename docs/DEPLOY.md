@@ -50,7 +50,7 @@ Every knob is an environment variable; no config file is required.
 | `HARNESS_WORKERS` | number of CPUs | worker goroutines |
 | `HARNESS_RETRIES` | `3` | max LLM attempts per call (`1` disables) |
 | `HARNESS_CONCURRENCY_DEFAULT` | `1` | max in-flight requests per backend endpoint (backpressure) |
-| `HARNESS_RATE_LIMIT` | off | global token-bucket rate limit per endpoint, e.g. `5/2` = 5 req/s, burst 2 |
+| `HARNESS_RATE_LIMIT` | off | global token-bucket rate limit per endpoint, e.g. `5/2` = 5 req per 2 sec (2.5/s), burst 5 |
 | `HARNESS_AUTH_TOKEN` | unset | bearer token for `/v1/*` (see below) |
 | `ENABLE_TOOLS` | `false` | opt in to built-in function calling |
 | `OPENAI_BASE_URL` | `http://127.0.0.1:11434/v1` | OpenAI-compatible endpoint |
@@ -121,7 +121,7 @@ restart-durable state.
 - **Capacity.** Workers (`HARNESS_WORKERS`) cap the total pool size. Per-backend
   concurrency is governed separately by the rate-limiter: `HARNESS_CONCURRENCY_DEFAULT`
   (default 1, conservative for a single local llama.cpp server) caps in-flight
-  requests per endpoint, and `HARNESS_RATE_LIMIT` ("5/2" = 5 req/s, burst 2) adds
+  requests per endpoint, and `HARNESS_RATE_LIMIT` ("5/2" = 5 req per 2 sec (2.5/s), burst 5) adds
   token-bucket burst shaping. Per-endpoint overrides (keyed on
   `host:port` as `HARNESS_CONCURRENCY_<HOST>` / `HARNESS_RATE_LIMIT_<HOST>`) and
   per-blueprint `concurrency`/`rate_limit` JSON fields take precedence. Keep

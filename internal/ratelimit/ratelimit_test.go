@@ -75,9 +75,9 @@ func TestConcurrencyIndependentAcrossEndpoints(t *testing.T) {
 	f := &fake{delay: 40 * time.Millisecond}
 	lim := New(f, Config{DefaultConcurrency: 1})
 
+	// 2 concurrent calls to each of two endpoints. Each endpoint must cap at
+	// 1 (its own semaphore); only across endpoints can in-flight reach 2.
 	var wg sync.WaitGroup
-	// 2 calls to endpoint A + 2 calls to endpoint B → each endpoint sees max 1,
-	// but across endpoints they overlap (maxPar counts peak across all calls).
 	for _, base := range []string{"http://a:8080/v1", "http://b:8081/v1"} {
 		for i := 0; i < 2; i++ {
 			wg.Add(1)
@@ -88,9 +88,11 @@ func TestConcurrencyIndependentAcrossEndpoints(t *testing.T) {
 		}
 	}
 	wg.Wait()
-	// peak in-flight across both endpoints can be 2 (one per endpoint)
-	if f.maxPar > 2 {
-		t.Fatalf("max in-flight = %d, want <= 2", f.maxPar)
+	// two independent endpoints at concurrency 1 each → peak in-flight is 2,
+	// never 2 on a single endpoint. maxPar==2 proves overlap across endpoints
+	// while the per-endpoint cap (==1) prevents over-driving each backend.
+	if f.maxPar != 2 {
+		t.Fatalf("max in-flight = %d, want 2 (one per endpoint in flight together)", f.maxPar)
 	}
 }
 

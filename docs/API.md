@@ -195,7 +195,7 @@ Errors use a JSON envelope: `{"error":{"code":"...","message":"..."}}`.
 | `HARNESS_WORKERS` | number of CPUs | worker pool size |
 | `HARNESS_RETRIES` | `3` | max LLM attempts per call (`1` disables retries) |
 | `HARNESS_CONCURRENCY_DEFAULT` | `1` | max in-flight requests per backend endpoint (backpressure against capacity-constrained servers) |
-| `HARNESS_RATE_LIMIT` | off | global token-bucket rate limit per endpoint, e.g. `5/2` = 5 req/s, burst 2 |
+| `HARNESS_RATE_LIMIT` | off | global token-bucket rate limit per endpoint, e.g. `5/2` = 5 req per 2 sec (2.5/s), burst 5 |
 | `HARNESS_AUTH_TOKEN` | empty | bearer token; required for `/v1/*` when set |
 | `ENABLE_TOOLS` | `false` | enable built-in tool calling |
 | `OPENAI_BASE_URL` | `http://127.0.0.1:11434/v1` | LLM endpoint |
