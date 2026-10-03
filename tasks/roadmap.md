@@ -34,5 +34,6 @@ Live phase tracker. Engine phases 0-11 are all complete. v1 shipped at end of Ph
 | D9 | Docs drift gate (`internal/docscheck` + always-run `docs` CI job), PR template, Conventional Commits title job | done |
 | D10 | CI hardening: pinned tool + action SHAs, Redis service coverage gate, Dependabot, dependency review, CodeQL, least-privilege workflows | done |
 | D11 | Golden wire-format tests (R6), CODEOWNERS + semantic PR-title action, scheduled container + real-model nightly workflow (R3/R7) | done |
+| D12 | Action major bumps (checkout v7, setup-go v7, codeql-action v4, goreleaser-action v7) + Dependabot grouping so subpath actions (CodeQL init/autobuild/analyze) stay in lockstep | done |
 
 Legend: `todo` | `in progress` | `done` | `blocked`.

@@ -3,6 +3,16 @@
 #   - github-actions: the pinned action SHAs get a PR when the tag moves
 # Commits use Conventional Commit subjects so the pr-title CI check accepts them
 # and so the changelog groups them correctly.
+#
+# Grouping notes:
+#   - github/codeql-action ships subpath actions (init, autobuild, analyze) that
+#     MUST run at the same version. Dependabot treats each subpath as a separate
+#     dependency, so without a group it opens one PR per subpath and any single
+#     merge leaves the workflow in an unsupported mixed-version state. The
+#     `codeql-action` group pins them into one PR; it is listed first because the
+#     first matching group wins.
+#   - every other action is grouped so a week of bumps lands as a single
+#     reviewable PR instead of five.
 version: 2
 updates:
   - package-ecosystem: gomod
@@ -33,8 +43,9 @@ updates:
     labels:
       - dependencies
     groups:
-      actions-minor-patch:
-        applies-to: version-updates
-        update-types:
-          - minor
-          - patch
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
+      actions:
+        patterns:
+          - "*"

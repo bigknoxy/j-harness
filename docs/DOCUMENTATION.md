@@ -44,7 +44,7 @@ relative links. Run it locally with `make docs`.
 | `docs/EVALS.md` | how to run evals | the runner or case schema changes |
 | `install.sh` / `uninstall.sh` | install/uninstall behavior, overridable vars, help text | install layout, download URLs, or overridable vars change |
 | `.github/workflows/*.yml` | CI (lint/test/coverage/vuln/dependency-review/docs/pr-title/smoke), release (GoReleaser), Pages publish, CodeQL | jobs, triggers, Go version, tool versions, or publish steps change |
-| `.github/dependabot.yml` | automated dependency + action-SHA updates | ecosystems, schedule, or grouping change |
+| `.github/dependabot.yml` | automated dependency + action-SHA updates, and the grouping that keeps `github/codeql-action` subpaths (init/autobuild/analyze) in one PR | ecosystems, schedule, or grouping change |
 | `.github/CODEOWNERS` | code ownership / automatic review requests | ownership or path rules change |
 | `scripts/coverage.sh` | the coverage floor (statement coverage vs `COVERAGE_THRESHOLD`) | coverage rule, profile flags, or threshold change |
 | `scripts/container_e2e.sh` / `scripts/stub_llm.py` | scheduled container E2E (build image, run it, drive the async API over real HTTP) | the container topology, stub behavior, or the API exercised changes |

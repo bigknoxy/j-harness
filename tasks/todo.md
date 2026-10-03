@@ -25,6 +25,21 @@ None.
 
 ## Done
 
+- [x] **D12: action major bumps + Dependabot grouping** (verified: every pinned
+  action SHA re-resolved against its official repo via `gh api repos/<repo>/commits/<tag>`
+  and matched; `grep` confirms no old SHAs remain in `.github/workflows/`; all workflow
+  YAML parses with `yaml.safe_load`; the `codeql-action` group is listed before the
+  catch-all `actions` group so the first-match-wins grouping keeps `init`/`autobuild`/`analyze`
+  in lockstep; full gate + CI green on the PR.)
+  - `actions/checkout` v4 -> v7.0.1 (`3d3c42e...`) across ci, codeql, release, nightly, gh-pages.
+  - `actions/setup-go` v5 -> v7.0.0 (`b7ad1da...`) across ci, codeql, release, nightly.
+  - `github/codeql-action/{init,autobuild,analyze}` v3 -> v4.38.2 (`2892aa5...`) together.
+  - `goreleaser/goreleaser-action` v6 -> v7.2.3 (`f06c13b...`).
+  - Why hand-rolled instead of merging Dependabot #16-#20: Dependabot treated the three
+    `github/codeql-action` subpaths as separate dependencies, opened PRs for `init` and
+    `analyze` only, left `autobuild` behind, and lagged the current patch. `dependabot.yml`
+    now groups `github/codeql-action*` into one PR (plus a catch-all `actions` group).
+
 - [x] **D11: research follow-ups (golden wire tests, CODEOWNERS, semantic PR title,
   scheduled container + real-model checks)** (verified: `go test ./internal/e2e/ -run TestGolden` 6/6 pass and `UPDATE_GOLDEN=1` regeneration round-trips;
   `sh scripts/container_e2e.sh` prints `container e2e passed` against a real
